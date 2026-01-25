@@ -1,0 +1,1 @@
+export { useGeeTestCaptcha } from './useGeeTestCaptcha';

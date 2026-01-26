@@ -5,6 +5,7 @@ import type {
   GeeTest4Error,
   GeeTest4Instance,
 } from "../types/geetest4.d.ts";
+import type { CaptchaType } from "../types/type.ts";
 import { validateGeeTest } from "../utils/geetest";
 import {
   predictTTShitu,
@@ -16,8 +17,7 @@ import {
 const GEETEST4_JS_URL = "https://static.geetest.com/v4/gt4.js";
 
 export interface GeeTestV4CaptchaProps {
-  /** GeeTest captchaId */
-  captchaId: string;
+  captchaType: CaptchaType;
   /** 验证完成回调（包含服务器验证结果） */
   onComplete?: () => void;
 }
@@ -393,10 +393,9 @@ function autoClickCaptchaButton(containerId: string): void {
  * GeeTest v4 验证码组件
  * 自动使用 TTShitu 识别并滑动验证码
  */
-export function GeeTestV4Captcha({
-  captchaId,
-  onComplete,
-}: GeeTestV4CaptchaProps) {
+export function GeeTestV4Captcha(props: GeeTestV4CaptchaProps) {
+  const { captchaType, onComplete } = props;
+  // const { challenge, riskType, geetestId } = captchaType;
   const containerId = useRef(
     `geetest-v4-${Math.random().toString(36).substring(2, 9)}`,
   );
@@ -576,7 +575,8 @@ export function GeeTestV4Captcha({
         }
 
         const config: GeeTest4Config = {
-          captchaId,
+          captchaId: captchaType.geetestId || "",
+          riskType: captchaType.riskType,
           product: "float",
           language: "zh-cn",
           onError: handleError,
@@ -622,7 +622,7 @@ export function GeeTestV4Captcha({
       }
     };
   }, [
-    captchaId,
+    captchaType,
     handleSuccess,
     handleFail,
     handleError,

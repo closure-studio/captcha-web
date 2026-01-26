@@ -1,18 +1,17 @@
 import React, { useState } from "react";
 import "./App.css";
 import { GeeTestV4Captcha } from "./components/GeeTestV4Captcha";
-
-const CAPTCHA_ID = import.meta.env.VITE_GEETEST_CAPTCHA_ID || "your-captcha-id";
-
-interface CaptchaType {
-  challenge: string;
-  provider: "geetest_v4" | "geetest_v3";
-  type?: "slide";
-}
+import type { CaptchaType } from "./types/type";
 
 function App() {
   const [challengeList, setChallengeList] = useState<CaptchaType[]>([
-    { challenge: "1", provider: "geetest_v4", type: "slide" },
+    {
+      challenge: "1",
+      geetestId: "c800963bf26df6e750f07df6daa791b8",
+      riskType: "word",
+      provider: "geetest_v4",
+      type: "slide",
+    },
   ]);
 
   // 用 useRef 持久化定时器映射
@@ -70,7 +69,7 @@ function App() {
       {challengeList.map((item) => (
         <GeeTestV4Captcha
           key={item.challenge}
-          captchaId={CAPTCHA_ID}
+          captchaType={item}
           onComplete={handleComplete(item.challenge)}
         />
       ))}

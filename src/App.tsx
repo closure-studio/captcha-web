@@ -2,13 +2,13 @@ import React, { useState } from "react";
 import "./App.css";
 import { GeeTestV4Captcha } from "./components/GeeTestV4Captcha";
 import type { CaptchaType } from "./types/type";
+import { CAPTCHA_ID } from "./consts/consts";
 
 function App() {
   const [challengeList, setChallengeList] = useState<CaptchaType[]>([
     {
       challenge: "1",
-      geetestId: "c800963bf26df6e750f07df6daa791b8",
-      riskType: "word",
+      geetestId: CAPTCHA_ID,
       provider: "geetest_v4",
       type: "slide",
     },

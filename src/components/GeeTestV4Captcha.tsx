@@ -11,7 +11,7 @@ import {
   predictTTShitu,
   reportErrorTTShitu,
   TTShituTypeId,
-} from "../utils/ttshitu";
+} from "../utils/captcha/ttshitu/client.ts";
 
 // GeeTest v4 CDN URL
 const GEETEST4_JS_URL = "https://static.geetest.com/v4/gt4.js";
@@ -262,7 +262,8 @@ async function autoSolveCaptcha(): Promise<string> {
   );
 
   console.log("TTShitu: 开始识别验证码...");
-
+  // sleep 500ms to ensure everything is ready
+  await new Promise((resolve) => setTimeout(resolve, 50000));
   // 调用 TTShitu 单缺口识别
   const { result, id } = await predictTTShitu(
     base64,

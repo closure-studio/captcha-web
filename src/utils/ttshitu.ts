@@ -71,7 +71,8 @@ export const TTShituTypeId = {
   PUZZLE: "53",
 } as const;
 
-export type TTShituTypeIdValue = typeof TTShituTypeId[keyof typeof TTShituTypeId];
+export type TTShituTypeIdValue =
+  (typeof TTShituTypeId)[keyof typeof TTShituTypeId];
 
 /**
  * TTShitu 请求参数
@@ -112,12 +113,33 @@ export interface TTShituPredictResponse {
   /** 失败原因 */
   message: string;
   /** 成功返回的结果内容 */
-  data: {
-    /** 识别结果 */
-    result: string;
-    /** 识别结果ID，用于报错 */
-    id: string;
-  } | string;
+  data:
+    | {
+        /** 识别结果 */
+        result: string;
+        /** 识别结果ID，用于报错 */
+        id: string;
+      }
+    | string;
+}
+
+/**
+ * TTShitu 报错接口响应数据
+ */
+export interface TTShituReportErrorResponse {
+  /** 请求返回的状态，true成功，false失败 */
+  success: boolean;
+  /** 返回的code，成功为0，失败为-1 */
+  code: string;
+  /** 失败原因（success=false时返回的原因） */
+  message: string;
+  /** 结果载体 */
+  data:
+    | {
+        /** 报错结果 */
+        result: string;
+      }
+    | string;
 }
 
 /**
@@ -181,9 +203,7 @@ export class TTShituClient {
     );
 
     if (!response.data.success) {
-      throw new Error(
-        `TTShitu predict error: ${response.data.message}`,
-      );
+      throw new Error(`TTShitu predict error: ${response.data.message}`);
     }
 
     if (typeof response.data.data === "string") {
@@ -202,7 +222,9 @@ export class TTShituClient {
     const result = await this.predict(image, TTShituTypeId.GAP_SINGLE_X);
     const x = parseInt(result.result, 10);
     if (isNaN(x)) {
-      throw new Error(`TTShitu recognizeGapX error: Invalid result "${result.result}"`);
+      throw new Error(
+        `TTShitu recognizeGapX error: Invalid result "${result.result}"`,
+      );
     }
     return x;
   }
@@ -216,7 +238,9 @@ export class TTShituClient {
     const result = await this.predict(image, TTShituTypeId.GAP_SINGLE_X_2);
     const x = parseInt(result.result, 10);
     if (isNaN(x)) {
-      throw new Error(`TTShitu recognizeGapX2 error: Invalid result "${result.result}"`);
+      throw new Error(
+        `TTShitu recognizeGapX2 error: Invalid result "${result.result}"`,
+      );
     }
     return x;
   }
@@ -232,7 +256,9 @@ export class TTShituClient {
     const x = parseInt(coords[0], 10);
     const y = parseInt(coords[1], 10);
     if (isNaN(x) || isNaN(y)) {
-      throw new Error(`TTShitu recognizeGapXY error: Invalid result "${result.result}"`);
+      throw new Error(
+        `TTShitu recognizeGapXY error: Invalid result "${result.result}"`,
+      );
     }
     return { x, y };
   }
@@ -244,8 +270,41 @@ export class TTShituClient {
    * @returns 识别结果
    */
   async recognizeGapDual(image: string, imageback: string): Promise<string> {
-    const result = await this.predict(image, TTShituTypeId.GAP_DUAL, { imageback });
+    const result = await this.predict(image, TTShituTypeId.GAP_DUAL, {
+      imageback,
+    });
     return result.result;
+  }
+
+  /**
+   * 报错接口 - 识别错误时调用此接口报错
+   * 注：为了保障接口使用的流畅性，报错结果在5min后批量更新，并返还次数或金额
+   * @param id 识别成功返回的id
+   * @returns 报错结果
+   */
+  async reportError(id: string): Promise<{ result: string }> {
+    const response = await axios.post<TTShituReportErrorResponse>(
+      `${this.baseUrl}/reporterror.json`,
+      { id },
+      {
+        headers: {
+          "Content-Type": "application/json;charset=UTF-8",
+        },
+        timeout: 30000, // 设置30秒超时
+      },
+    );
+
+    if (!response.data.success) {
+      throw new Error(`TTShitu reportError error: ${response.data.message}`);
+    }
+
+    // 服务端可能返回字符串或对象格式，需要兼容两种情况
+    // 成功时可能返回: data: "报错成功" 或 data: { result: "报错成功" }
+    if (typeof response.data.data === "string") {
+      return { result: response.data.data };
+    }
+
+    return response.data.data;
   }
 }
 
@@ -290,6 +349,20 @@ export async function recognizeGapX2(image: string): Promise<number> {
 /**
  * 缺口识别XY（使用默认客户端）
  */
-export async function recognizeGapXY(image: string): Promise<{ x: number; y: number }> {
+export async function recognizeGapXY(
+  image: string,
+): Promise<{ x: number; y: number }> {
   return getDefaultTTShituClient().recognizeGapXY(image);
+}
+
+/**
+ * 报错接口（使用默认客户端）
+ * 注：为了保障接口使用的流畅性，报错结果在5min后批量更新，并返还次数或金额
+ * @param id 识别成功返回的id
+ * @returns 报错结果
+ */
+export async function reportErrorTTShitu(
+  id: string,
+): Promise<{ result: string }> {
+  return getDefaultTTShituClient().reportError(id);
 }

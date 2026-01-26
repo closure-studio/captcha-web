@@ -1,1 +1,1 @@
-export { GeeTestCaptcha, type GeeTestCaptchaProps } from './GeeTestCaptcha';
+export { GeeTestV4Captcha, type GeeTestV4CaptchaProps } from './GeeTestV4Captcha';

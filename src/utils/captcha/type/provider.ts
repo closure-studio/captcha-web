@@ -81,6 +81,49 @@ export interface CaptchaReportErrorResult {
 }
 
 /**
+ * GeeTest 滑块验证码 bypass 上下文
+ * 包含容器内所有需要的 DOM 元素引用
+ */
+export interface GeeTestSlideBypassContext {
+  /** 容器元素 */
+  container: HTMLElement;
+  /** 滑块按钮元素 */
+  sliderBtn: HTMLElement;
+  /** 滑块轨道元素 */
+  sliderTrack: HTMLElement;
+  /** 拼图块元素 */
+  sliceElement: HTMLElement;
+  /** 验证码图片窗口元素 */
+  captchaWindow: HTMLElement;
+  /** 截图 canvas 的宽度（用于计算缩放比例） */
+  canvasWidth: number;
+}
+
+/**
+ * GeeTest 点选验证码 bypass 上下文
+ */
+export interface GeeTestClickBypassContext {
+  /** 容器元素 */
+  container: HTMLElement;
+  /** 验证码图片窗口元素 */
+  captchaWindow: HTMLElement;
+  /** 截图 canvas 的宽度（用于计算缩放比例） */
+  canvasWidth: number;
+  /** 截图 canvas 的高度（用于计算缩放比例） */
+  canvasHeight: number;
+}
+
+/**
+ * Bypass 执行结果
+ */
+export interface BypassResult {
+  /** 是否成功 */
+  success: boolean;
+  /** 结果消息 */
+  message: string;
+}
+
+/**
  * 验证码提供者接口
  */
 export interface ICaptchaProvider {
@@ -100,4 +143,27 @@ export interface ICaptchaProvider {
    * @returns 报错结果
    */
   reportError(captchaId: string): Promise<CaptchaReportErrorResult>;
+
+  /**
+   * 执行 GeeTest 滑块验证码 bypass
+   * 不同的 provider 可能返回不同的坐标偏差，所以 bypass 逻辑由 provider 实现
+   * @param context bypass 上下文，包含所需的 DOM 元素引用
+   * @param solveResult 识别结果
+   * @returns bypass 执行结果
+   */
+  bypassGeeTestSlide?(
+    context: GeeTestSlideBypassContext,
+    solveResult: CaptchaSolveResult,
+  ): Promise<BypassResult>;
+
+  /**
+   * 执行 GeeTest 点选验证码 bypass
+   * @param context bypass 上下文
+   * @param solveResult 识别结果
+   * @returns bypass 执行结果
+   */
+  bypassGeeTestClick?(
+    context: GeeTestClickBypassContext,
+    solveResult: CaptchaSolveResult,
+  ): Promise<BypassResult>;
 }

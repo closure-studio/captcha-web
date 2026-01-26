@@ -5,10 +5,7 @@ import type {
   GeeTest4Error,
   GeeTest4Instance,
 } from "../types/geetest4.d.ts";
-import {
-  validateGeeTest,
-  type GeeTestValidateResponse,
-} from "../utils/geetest";
+import { validateGeeTest } from "../utils/geetest";
 import {
   predictTTShitu,
   reportErrorTTShitu,
@@ -22,7 +19,7 @@ export interface GeeTestV4CaptchaProps {
   /** GeeTest captchaId */
   captchaId: string;
   /** 验证完成回调（包含服务器验证结果） */
-  onComplete?: (response: GeeTestValidateResponse) => void;
+  onComplete?: () => void;
 }
 
 /**
@@ -442,7 +439,7 @@ export function GeeTestV4Captcha({
       if (response.result === "success") {
         setStatus("success");
         setStatusMessage(response.msg || "验证成功");
-        onComplete?.(response);
+        onComplete?.();
       } else {
         setStatus("error");
         setStatusMessage(response.msg || "验证失败");
@@ -453,65 +450,77 @@ export function GeeTestV4Captcha({
         error instanceof Error ? error.message : "服务器验证失败";
       setStatus("error");
       setStatusMessage(errorMessage);
+      onComplete?.();
     }
   }, [onComplete]);
 
-  const handleFail = useCallback(async (err: GeeTest4Error) => {
-    console.error("GeeTest v4 validation failed:", err);
+  const handleFail = useCallback(
+    async (err: GeeTest4Error) => {
+      console.error("GeeTest v4 validation failed:", err);
 
-    // 如果有识别 ID，调用报错接口
-    if (recognitionIdRef.current) {
-      try {
-        console.log("TTShitu: 调用报错接口, ID:", recognitionIdRef.current);
-        const reportResult = await reportErrorTTShitu(recognitionIdRef.current);
-        console.log("TTShitu: 报错成功:", reportResult);
-      } catch (reportError) {
-        console.error("TTShitu: 报错失败:", reportError);
-      }
-      recognitionIdRef.current = null;
-    }
-
-    // 检查是否可以重试
-    if (retryCountRef.current < MAX_RETRY_COUNT) {
-      retryCountRef.current += 1;
-      console.log(`TTShitu: 开始第 ${retryCountRef.current} 次重试...`);
-      setStatus("retrying");
-      setStatusMessage(
-        `验证失败，正在重试 (${retryCountRef.current}/${MAX_RETRY_COUNT})...`,
-      );
-
-      // 验证码窗口已经显示，等待GeeTest刷新新的验证码图片后重新识别
-      // GeeTest 在验证失败后会自动刷新图片，需要等待足够的时间
-      setTimeout(async () => {
+      // 如果有识别 ID，调用报错接口
+      if (recognitionIdRef.current) {
         try {
-          setStatus("solving");
-          setStatusMessage(
-            `TTShitu 识别中 (重试 ${retryCountRef.current}/${MAX_RETRY_COUNT})...`,
+          console.log("TTShitu: 调用报错接口, ID:", recognitionIdRef.current);
+          const reportResult = await reportErrorTTShitu(
+            recognitionIdRef.current,
           );
-
-          const newId = await autoSolveCaptcha();
-          recognitionIdRef.current = newId;
-
-          // 识别成功后状态会由 handleSuccess 更新
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : "TTShitu 识别失败";
-          console.error("TTShitu error:", errorMessage);
-          setStatus("error");
-          setStatusMessage(errorMessage);
+          console.log("TTShitu: 报错成功:", reportResult);
+        } catch (reportError) {
+          console.error("TTShitu: 报错失败:", reportError);
         }
-      }, 2000); // 等待验证码图片刷新完成
-    } else {
-      setStatus("error");
-      setStatusMessage(`验证失败: ${err.msg || "已达最大重试次数"}`);
-      retryCountRef.current = 0; // 重置重试计数
-    }
-  }, []);
+        recognitionIdRef.current = null;
+      }
 
-  const handleError = useCallback((err: GeeTest4Error) => {
-    console.error("GeeTest v4 error:", err);
-    setLoadError(err.msg || "Unknown error");
-  }, []);
+      // 检查是否可以重试
+      if (retryCountRef.current < MAX_RETRY_COUNT) {
+        retryCountRef.current += 1;
+        console.log(`TTShitu: 开始第 ${retryCountRef.current} 次重试...`);
+        setStatus("retrying");
+        setStatusMessage(
+          `验证失败，正在重试 (${retryCountRef.current}/${MAX_RETRY_COUNT})...`,
+        );
+
+        // 验证码窗口已经显示，等待GeeTest刷新新的验证码图片后重新识别
+        // GeeTest 在验证失败后会自动刷新图片，需要等待足够的时间
+        setTimeout(async () => {
+          try {
+            setStatus("solving");
+            setStatusMessage(
+              `TTShitu 识别中 (重试 ${retryCountRef.current}/${MAX_RETRY_COUNT})...`,
+            );
+
+            const newId = await autoSolveCaptcha();
+            recognitionIdRef.current = newId;
+
+            // 识别成功后状态会由 handleSuccess 更新
+          } catch (error) {
+            const errorMessage =
+              error instanceof Error ? error.message : "TTShitu 识别失败";
+            console.error("TTShitu error:", errorMessage);
+            setStatus("error");
+            setStatusMessage(errorMessage);
+            onComplete?.();
+          }
+        }, 3000); // 等待验证码图片刷新完成
+      } else {
+        setStatus("error");
+        setStatusMessage(`验证失败: ${err.msg || "已达最大重试次数"}`);
+        retryCountRef.current = 0; // 重置重试计数
+        onComplete?.();
+      }
+    },
+    [onComplete],
+  );
+
+  const handleError = useCallback(
+    (err: GeeTest4Error) => {
+      console.error("GeeTest v4 error:", err);
+      setLoadError(err.msg || "Unknown error");
+      onComplete?.();
+    },
+    [onComplete],
+  );
 
   const handleReady = useCallback(() => {
     setIsLoading(false);
@@ -538,10 +547,11 @@ export function GeeTestV4Captcha({
           console.error("TTShitu error:", errorMessage);
           setStatus("error");
           setStatusMessage(errorMessage);
+          onComplete?.();
         }
       }, 2000); // 等待验证码图片刷新完成
     }, 1000);
-  }, []);
+  }, [onComplete]);
 
   const handleClose = useCallback(() => {
     // 验证码关闭时重置状态

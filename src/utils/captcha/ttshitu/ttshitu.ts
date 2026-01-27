@@ -12,6 +12,21 @@ import {
   type ICaptchaProvider,
 } from "../type/provider";
 import { TTShituClient, TTShituTypeId, type TTShituOptions } from "./client";
+import {
+  TTShituSlideBypass,
+  type TTShituSlideBypassConfig,
+} from "./slide";
+import { createModuleLogger } from "../../../utils/logger";
+
+const logger = createModuleLogger("TTShitu");
+
+/**
+ * TTShitu 验证码提供者配置
+ */
+export interface TTShituCaptchaProviderOptions extends TTShituOptions {
+  /** 滑块 bypass 配置 */
+  slideBypassConfig?: TTShituSlideBypassConfig;
+}
 
 /**
  * TTShitu 验证码提供者
@@ -20,12 +35,11 @@ export class TTShituCaptchaProvider implements ICaptchaProvider {
   readonly name = ProviderNames.TTSHITU;
   private client: TTShituClient;
   private lastResultId: string = "";
+  private slideBypass: TTShituSlideBypass;
 
-  // TTShitu 特有的偏移量校正值
-  private static readonly SLIDE_X_OFFSET = -10;
-
-  constructor(options?: TTShituOptions) {
+  constructor(options?: TTShituCaptchaProviderOptions) {
     this.client = new TTShituClient(options);
+    this.slideBypass = new TTShituSlideBypass(options?.slideBypassConfig);
   }
 
   async solve(request: CaptchaSolveRequest): Promise<CaptchaSolveResult> {
@@ -106,168 +120,13 @@ export class TTShituCaptchaProvider implements ICaptchaProvider {
 
   /**
    * 执行 GeeTest 滑块验证码 bypass
-   * TTShitu 返回的坐标是基于截图 canvas 的，需要转换为实际 DOM 坐标
+   * 委托给 TTShituSlideBypass 处理
    */
   async bypassGeeTestSlide(
     context: GeeTestSlideBypassContext,
     solveResult: CaptchaSolveResult,
   ): Promise<BypassResult> {
-    try {
-      const { sliderBtn, sliceElement, captchaWindow, canvasWidth } = context;
-
-      if (solveResult.data.points.length === 0) {
-        return {
-          success: false,
-          message: "No points in solve result",
-        };
-      }
-
-      const targetX = solveResult.data.points[0].x;
-
-      // 获取滑块按钮的位置（相对于容器内部计算）
-      const btnRect = sliderBtn.getBoundingClientRect();
-      const startX = btnRect.left - btnRect.width;
-      const startY = btnRect.top + btnRect.height / 2;
-
-      // 获取拼图块和验证码窗口的位置信息
-      const sliceRect = sliceElement.getBoundingClientRect();
-      const windowRect = captchaWindow.getBoundingClientRect();
-
-      // 计算缩放比例：canvas 截图尺寸 vs 实际 DOM 元素尺寸
-      const scaleFactor = windowRect.width / canvasWidth;
-
-      // 将 TTShitu 返回的 targetX（基于 canvas 坐标）转换为实际 DOM 坐标
-      const scaledTargetX = targetX * scaleFactor;
-
-      // 计算拼图块当前在验证码图片中的相对x位置
-      const sliceStartX = sliceRect.left - windowRect.left;
-
-      // 计算需要滑动的距离（包含 TTShitu 特有的偏移量校正）
-      const slideDistance =
-        scaledTargetX - sliceStartX + TTShituCaptchaProvider.SLIDE_X_OFFSET;
-
-      // 最终的鼠标目标位置
-      const endX = startX + slideDistance;
-      const endY = startY;
-
-      // 调试信息
-      console.log("TTShitu: ========== 滑动调试信息 ==========");
-      console.log("TTShitu: 识别返回的 targetX (canvas坐标):", targetX);
-      console.log("TTShitu: Canvas 宽度:", canvasWidth);
-      console.log("TTShitu: 验证码窗口 DOM 宽度:", windowRect.width);
-      console.log("TTShitu: 缩放比例 (DOM/Canvas):", scaleFactor);
-      console.log("TTShitu: 缩放后的 targetX (DOM坐标):", scaledTargetX);
-      console.log(
-        "TTShitu: X 偏移量校正:",
-        TTShituCaptchaProvider.SLIDE_X_OFFSET,
-      );
-      console.log("TTShitu: 拼图块当前位置:", {
-        left: sliceRect.left,
-        relativeLeft: sliceStartX,
-        width: sliceRect.width,
-      });
-      console.log("TTShitu: 滑动计算:", {
-        sliceStartX,
-        scaledTargetX,
-        slideDistance,
-        startX,
-        endX,
-      });
-      console.log("TTShitu: =====================================");
-
-      // 执行滑动
-      await this.performSlide(sliderBtn, startX, startY, endX, endY);
-
-      return {
-        success: true,
-        message: "Slide bypass completed",
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : "Unknown error",
-      };
-    }
-  }
-
-  /**
-   * 执行滑动操作
-   */
-  private async performSlide(
-    sliderBtn: HTMLElement,
-    startX: number,
-    startY: number,
-    endX: number,
-    endY: number,
-  ): Promise<void> {
-    // 创建鼠标事件
-    const createMouseEvent = (type: string, x: number, y: number) => {
-      return new MouseEvent(type, {
-        bubbles: true,
-        cancelable: true,
-        view: window,
-        clientX: x,
-        clientY: y,
-        button: 0,
-        buttons: type === "mouseup" ? 0 : 1,
-      });
-    };
-
-    // 创建 Touch 事件（用于支持移动端）
-    const createTouchEvent = (type: string, x: number, y: number) => {
-      const touch = new Touch({
-        identifier: Date.now(),
-        target: sliderBtn,
-        clientX: x,
-        clientY: y,
-        pageX: x + window.scrollX,
-        pageY: y + window.scrollY,
-        screenX: x,
-        screenY: y,
-      });
-      return new TouchEvent(type, {
-        bubbles: true,
-        cancelable: true,
-        touches: type === "touchend" ? [] : [touch],
-        targetTouches: type === "touchend" ? [] : [touch],
-        changedTouches: [touch],
-      });
-    };
-
-    // 模拟拖动过程
-    // 1. 鼠标/触摸按下
-    sliderBtn.dispatchEvent(createMouseEvent("mousedown", startX, startY));
-    sliderBtn.dispatchEvent(createTouchEvent("touchstart", startX, startY));
-
-    // 2. 逐步移动（模拟人类滑动）
-    const steps = 30;
-    const deltaX = (endX - startX) / steps;
-
-    for (let i = 1; i <= steps; i++) {
-      const currentX = startX + deltaX * i;
-      // 添加随机偏移模拟人类行为
-      const randomY = startY + (Math.random() - 0.5) * 2;
-
-      await new Promise((resolve) =>
-        setTimeout(resolve, 15 + Math.random() * 10),
-      );
-
-      sliderBtn.dispatchEvent(createMouseEvent("mousemove", currentX, randomY));
-      sliderBtn.dispatchEvent(createTouchEvent("touchmove", currentX, randomY));
-      document.dispatchEvent(createMouseEvent("mousemove", currentX, randomY));
-    }
-
-    // 3. 最后一次移动到准确位置
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    sliderBtn.dispatchEvent(createMouseEvent("mousemove", endX, endY));
-    sliderBtn.dispatchEvent(createTouchEvent("touchmove", endX, endY));
-    document.dispatchEvent(createMouseEvent("mousemove", endX, endY));
-
-    // 4. 鼠标/触摸松开
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    sliderBtn.dispatchEvent(createMouseEvent("mouseup", endX, endY));
-    sliderBtn.dispatchEvent(createTouchEvent("touchend", endX, endY));
-    document.dispatchEvent(createMouseEvent("mouseup", endX, endY));
+    return this.slideBypass.execute(context, solveResult);
   }
 
   /**
@@ -304,7 +163,7 @@ export class TTShituCaptchaProvider implements ICaptchaProvider {
         const clickX = windowRect.left + scaledX;
         const clickY = windowRect.top + scaledY;
 
-        console.log("TTShitu: 点击坐标:", {
+        logger.log("点击坐标:", {
           original: point,
           scaled: { x: scaledX, y: scaledY },
           screen: { x: clickX, y: clickY },

@@ -1,6 +1,9 @@
 import { useState, useCallback } from 'react';
-import { validateGeeTest, type GeeTestValidateResponse } from '../utils/geetest';
+import { validateGeeTest, type GeeTestValidateResponse } from '../utils/geetest/myServer.ts';
 import type { GeeTest4ValidateResult, GeeTest4Error } from '../types/geetest4.d.ts';
+import { createModuleLogger } from '../utils/logger';
+
+const logger = createModuleLogger('GeeTestV4Hook');
 
 export interface UseGeeTestV4Options {
   /** 自动验证到服务器 */
@@ -65,7 +68,7 @@ export function useGeeTestV4(options: UseGeeTestV4Options = {}): UseGeeTestV4Ret
   }, []);
 
   const handleSuccess = useCallback(async (result: GeeTest4ValidateResult) => {
-    console.log('GeeTest v4 前端验证成功:', result);
+    logger.log('GeeTest v4 前端验证成功:', result);
     setValidateResult(result);
     setIsVerified(true);
     setServerError(null);
@@ -78,7 +81,7 @@ export function useGeeTestV4(options: UseGeeTestV4Options = {}): UseGeeTestV4Ret
 
       try {
         const response = await validateGeeTest(result);
-        console.log('GeeTest v4 服务器验证结果:', response);
+        logger.log('GeeTest v4 服务器验证结果:', response);
         setServerResult(response);
         
         if (response.result === 'success') {
@@ -87,7 +90,7 @@ export function useGeeTestV4(options: UseGeeTestV4Options = {}): UseGeeTestV4Ret
           onServerError?.(response.msg || '验证失败');
         }
       } catch (error) {
-        console.error('GeeTest v4 服务器验证失败:', error);
+        logger.error('GeeTest v4 服务器验证失败:', error);
         const errorMessage = error instanceof Error ? error.message : '服务器验证失败';
         setServerError(errorMessage);
         onServerError?.(errorMessage);
@@ -98,22 +101,22 @@ export function useGeeTestV4(options: UseGeeTestV4Options = {}): UseGeeTestV4Ret
   }, [autoValidate, onFrontendSuccess, onServerSuccess, onServerError]);
 
   const handleFail = useCallback((error: GeeTest4Error) => {
-    console.error('GeeTest v4 验证失败:', error);
+    logger.error('GeeTest v4 验证失败:', error);
     setIsVerified(false);
     setServerResult(null);
     setServerError(null);
   }, []);
 
   const handleError = useCallback((error: GeeTest4Error) => {
-    console.error('GeeTest v4 错误:', error);
+    logger.error('GeeTest v4 错误:', error);
   }, []);
 
   const handleReady = useCallback(() => {
-    console.log('GeeTest v4 验证码已准备就绪');
+    logger.log('GeeTest v4 验证码已准备就绪');
   }, []);
 
   const handleClose = useCallback(() => {
-    console.log('GeeTest v4 验证码已关闭');
+    logger.log('GeeTest v4 验证码已关闭');
   }, []);
 
   return {

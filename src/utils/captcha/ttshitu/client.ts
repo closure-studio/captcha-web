@@ -1,4 +1,7 @@
 import axios from "axios";
+import { createModuleLogger } from "../../../utils/logger";
+
+const logger = createModuleLogger("TTShitu Client");
 
 // TTShitu API 基础 URL
 const TTSHITU_API_URL = "http://api.ttshitu.com";
@@ -165,7 +168,7 @@ export class TTShituClient {
     this.baseUrl = options.baseUrl || TTSHITU_API_URL;
 
     if (!this.username || !this.password) {
-      console.warn(
+      logger.warn(
         "TTShitu username/password not provided. Set VITE_TTSHITU_USERNAME and VITE_TTSHITU_PASSWORD environment variables or pass in options.",
       );
     }

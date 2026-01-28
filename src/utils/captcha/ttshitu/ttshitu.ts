@@ -1,4 +1,5 @@
 import {
+  BaseCaptchaProvider,
   CaptchaSolveCode,
   CaptchaType,
   ProviderNames,
@@ -7,18 +8,13 @@ import {
   type CaptchaReportErrorResult,
   type CaptchaSolveRequest,
   type CaptchaSolveResult,
-  type GeeTestClickBypassContext,
   type GeeTestSlideBypassContext,
-  type ICaptchaProvider,
 } from "../type/provider";
 import { TTShituClient, TTShituTypeId, type TTShituOptions } from "./client";
 import {
   TTShituSlideBypass,
   type TTShituSlideBypassConfig,
 } from "./slide";
-import { createModuleLogger } from "../../../utils/logger";
-
-const logger = createModuleLogger("TTShitu");
 
 /**
  * TTShitu 验证码提供者配置
@@ -30,14 +26,17 @@ export interface TTShituCaptchaProviderOptions extends TTShituOptions {
 
 /**
  * TTShitu 验证码提供者
+ * 继承 BaseCaptchaProvider 以复用通用的 bypass 方法（如 bypassGeeTestClick）
+ * 重写 bypassGeeTestSlide 以使用专用的滑块 bypass 逻辑
  */
-export class TTShituCaptchaProvider implements ICaptchaProvider {
+export class TTShituCaptchaProvider extends BaseCaptchaProvider {
   readonly name = ProviderNames.TTSHITU;
   private client: TTShituClient;
   private lastResultId: string = "";
   private slideBypass: TTShituSlideBypass;
 
   constructor(options?: TTShituCaptchaProviderOptions) {
+    super();
     this.client = new TTShituClient(options);
     this.slideBypass = new TTShituSlideBypass(options?.slideBypassConfig);
   }
@@ -120,7 +119,7 @@ export class TTShituCaptchaProvider implements ICaptchaProvider {
 
   /**
    * 执行 GeeTest 滑块验证码 bypass
-   * 委托给 TTShituSlideBypass 处理
+   * 重写父类方法，使用专用的 TTShituSlideBypass 处理
    */
   async bypassGeeTestSlide(
     context: GeeTestSlideBypassContext,
@@ -129,87 +128,5 @@ export class TTShituCaptchaProvider implements ICaptchaProvider {
     return this.slideBypass.execute(context, solveResult);
   }
 
-  /**
-   * 执行 GeeTest 点选验证码 bypass
-   * TTShitu 返回的坐标是基于截图 canvas 的，需要转换为实际 DOM 坐标
-   */
-  async bypassGeeTestClick(
-    context: GeeTestClickBypassContext,
-    solveResult: CaptchaSolveResult,
-  ): Promise<BypassResult> {
-    try {
-      const { captchaWindow, canvasWidth, canvasHeight } = context;
-
-      if (solveResult.data.points.length === 0) {
-        return {
-          success: false,
-          message: "No points in solve result",
-        };
-      }
-
-      const windowRect = captchaWindow.getBoundingClientRect();
-
-      // 计算缩放比例
-      const scaleFactorX = windowRect.width / canvasWidth;
-      const scaleFactorY = windowRect.height / canvasHeight;
-
-      // 点击每个坐标点
-      for (const point of solveResult.data.points) {
-        // 将 canvas 坐标转换为实际 DOM 坐标
-        const scaledX = point.x * scaleFactorX;
-        const scaledY = point.y * scaleFactorY;
-
-        // 计算在屏幕上的绝对坐标
-        const clickX = windowRect.left + scaledX;
-        const clickY = windowRect.top + scaledY;
-
-        logger.log("点击坐标:", {
-          original: point,
-          scaled: { x: scaledX, y: scaledY },
-          screen: { x: clickX, y: clickY },
-        });
-
-        // 执行点击
-        await this.performClick(captchaWindow, clickX, clickY);
-
-        // 等待一段时间再点击下一个
-        await new Promise((resolve) =>
-          setTimeout(resolve, 200 + Math.random() * 100),
-        );
-      }
-
-      return {
-        success: true,
-        message: "Click bypass completed",
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : "Unknown error",
-      };
-    }
-  }
-
-  /**
-   * 执行点击操作
-   */
-  private async performClick(
-    target: HTMLElement,
-    x: number,
-    y: number,
-  ): Promise<void> {
-    const eventOptions = {
-      bubbles: true,
-      cancelable: true,
-      view: window,
-      clientX: x,
-      clientY: y,
-      button: 0,
-    };
-
-    target.dispatchEvent(new MouseEvent("mousedown", eventOptions));
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    target.dispatchEvent(new MouseEvent("mouseup", eventOptions));
-    target.dispatchEvent(new MouseEvent("click", eventOptions));
-  }
+  // bypassGeeTestClick 直接继承自 BaseCaptchaProvider，无需重写
 }

@@ -167,3 +167,112 @@ export interface ICaptchaProvider {
     solveResult: CaptchaSolveResult,
   ): Promise<BypassResult>;
 }
+
+/**
+ * 验证码提供者抽象基类
+ * 提供通用的 bypass 方法实现，子类只需实现 solve 和 reportError 方法
+ */
+export abstract class BaseCaptchaProvider implements ICaptchaProvider {
+  /** 提供者名称 - 子类必须实现 */
+  abstract readonly name: string;
+
+  /**
+   * 识别验证码 - 子类必须实现
+   */
+  abstract solve(request: CaptchaSolveRequest): Promise<CaptchaSolveResult>;
+
+  /**
+   * 报告识别错误 - 子类必须实现
+   */
+  abstract reportError(captchaId: string): Promise<CaptchaReportErrorResult>;
+
+  /**
+   * 执行 GeeTest 点选验证码 bypass
+   * 通用实现：将 canvas 坐标转换为实际 DOM 坐标并执行点击
+   */
+  async bypassGeeTestClick(
+    context: GeeTestClickBypassContext,
+    solveResult: CaptchaSolveResult,
+  ): Promise<BypassResult> {
+    try {
+      const { captchaWindow, canvasWidth, canvasHeight } = context;
+
+      if (solveResult.data.points.length === 0) {
+        return {
+          success: false,
+          message: "No points in solve result",
+        };
+      }
+
+      const windowRect = captchaWindow.getBoundingClientRect();
+
+      // 计算缩放比例
+      const scaleFactorX = windowRect.width / canvasWidth;
+      const scaleFactorY = windowRect.height / canvasHeight;
+
+      // 点击每个坐标点
+      for (const point of solveResult.data.points) {
+        // 将 canvas 坐标转换为实际 DOM 坐标
+        const scaledX = point.x * scaleFactorX;
+        const scaledY = point.y * scaleFactorY;
+
+        // 计算在屏幕上的绝对坐标
+        const clickX = windowRect.left + scaledX;
+        const clickY = windowRect.top + scaledY;
+
+        console.log("[BaseCaptchaProvider] 点击坐标:", {
+          original: point,
+          scaled: { x: scaledX, y: scaledY },
+          screen: { x: clickX, y: clickY },
+        });
+
+        // 执行点击
+        await this.performClick(captchaWindow, clickX, clickY);
+
+        // 等待一段时间再点击下一个
+        await this.sleep(200 + Math.random() * 100);
+      }
+
+      return {
+        success: true,
+        message: "Click bypass completed",
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
+  /**
+   * 执行点击操作
+   * 子类可以调用此方法，也可以重写
+   */
+  protected async performClick(
+    target: HTMLElement,
+    x: number,
+    y: number,
+  ): Promise<void> {
+    const eventOptions = {
+      bubbles: true,
+      cancelable: true,
+      view: window,
+      clientX: x,
+      clientY: y,
+      button: 0,
+    };
+
+    target.dispatchEvent(new MouseEvent("mousedown", eventOptions));
+    await this.sleep(50);
+    target.dispatchEvent(new MouseEvent("mouseup", eventOptions));
+    target.dispatchEvent(new MouseEvent("click", eventOptions));
+  }
+
+  /**
+   * 延时工具方法
+   */
+  protected sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+}

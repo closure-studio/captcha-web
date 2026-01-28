@@ -1,21 +1,23 @@
 import {
+  BaseCaptchaProvider,
   CaptchaSolveCode,
   ProviderNames,
   type CaptchaReportErrorResult,
   type CaptchaSolveRequest,
   type CaptchaSolveResult,
-  type ICaptchaProvider,
 } from "../type/provider";
 import { AegirClient, type AegirOptions } from "./client";
 
 /**
  * Aegir 验证码提供者
+ * 继承 BaseCaptchaProvider 以复用通用的 bypass 方法
  */
-export class AegirCaptchaProvider implements ICaptchaProvider {
+export class AegirCaptchaProvider extends BaseCaptchaProvider {
   readonly name = ProviderNames.AEGIR;
   private client: AegirClient;
 
   constructor(options?: AegirOptions) {
+    super();
     this.client = new AegirClient(options);
   }
 

@@ -1,44 +1,53 @@
-import { useCallback, useEffect, useRef, useState, useMemo } from "react";
-import type { GeeTest4Config, GeeTest4Error } from "../types/geetest4.d.ts";
-import type { GeeTestSlideBypassContext } from "../utils/captcha/type/provider.ts";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { GeeTest4Config, GeeTest4Error } from "../../../types/geetest4";
 import {
   CaptchaSolveCode,
-  CaptchaType as ProviderCaptchaType,
-} from "../utils/captcha/type/provider.ts";
-import { validateGeeTest } from "../utils/geetest/myServer.ts";
-import {
-  captureScreenshot,
-  logScreenshotPreview,
-  drawDebugOverlay,
-} from "../utils/screenshot";
+  type ICaptchaProvider,
+  type CaptchaSolveResult,
+} from "../../../utils/captcha/type/provider.ts";
 import {
   autoClickCaptchaButton,
-  findGeeTestElements,
   loadGeeTestV4Script,
-} from "../utils/geetest/geetest.ts";
-import { createModuleLogger } from "../utils/logger";
+} from "../../../utils/geetest/geetest.ts";
+import { validateGeeTest } from "../../../utils/geetest/myServer.ts";
+import { createModuleLogger } from "../../../utils/logger.ts";
+import type { CaptchaStatus } from "../../../consts/captcha.ts";
+import { CAPTCHA_DELAYS, MAX_RETRY_COUNT } from "../../../consts/captcha.ts";
+import type {
+  CaptchaRefs,
+  GeeTestV4CaptchaProps,
+} from "../../../types/captcha.ts";
+import {
+  generateContainerId,
+  getErrorMessage,
+} from "../../../utils/helpers.ts";
+import {
+  ErrorDisplay,
+  LoadingSpinner,
+  StatusIndicator,
+} from "../../ui/index.ts";
 
-// Import from separated modules
-import type { GeeTestV4CaptchaProps, CaptchaRefs } from "../types/captcha";
-import type { CaptchaStatus } from "../consts/captcha";
-import { MAX_RETRY_COUNT, CAPTCHA_DELAYS } from "../consts/captcha";
-import { getErrorMessage, generateContainerId } from "../utils/helpers";
-import { LoadingSpinner, ErrorDisplay, StatusIndicator } from "./ui";
+const logger = createModuleLogger("GeeTestV4Base");
 
-const logger = createModuleLogger("GeeTestV4Captcha");
+export interface GeetestV4BaseProps extends GeeTestV4CaptchaProps {
+  /**
+   * Specific auto-solve implementation for the captcha type
+   */
+  onAutoSolve: (
+    container: HTMLElement,
+    provider: ICaptchaProvider,
+  ) => Promise<CaptchaSolveResult>;
+}
 
 /**
- * GeeTest v4 验证码组件
- * 支持 Provider 模式和容器隔离
+ * GeeTest v4 Base Component
+ * Encapsulates common logic for initialization, state management, and lifecycle
  */
-export function GeeTestV4Captcha({
-  captchaType,
-  provider,
-  containerId,
-  onComplete,
-}: GeeTestV4CaptchaProps) {
+export function GeetestV4Base(props: GeetestV4BaseProps) {
+  const { captchaInfo, provider, onComplete, onAutoSolve } = props;
+
   // Refs
-  const innerContainerId = useRef(generateContainerId("geetest-inner"));
+  const innerContainerId = useRef(generateContainerId());
   const containerRef = useRef<HTMLDivElement>(null);
   const refs = useRef<CaptchaRefs>({
     captcha: null,
@@ -53,124 +62,29 @@ export function GeeTestV4Captcha({
   const [status, setStatus] = useState<CaptchaStatus>("idle");
   const [statusMessage, setStatusMessage] = useState("");
 
-  // Memoized getter for outer container
-  const getOuterContainer = useCallback(
-    () => document.getElementById(containerId),
-    [containerId],
-  );
-
-  // Capture screenshot of GeeTest box
-  const captureGeeTestBox = useCallback(async () => {
-    try {
-      logger.log("截图目标容器ID:", containerId);
-      const result = await captureScreenshot(containerId);
-      logger.log("截图元素尺寸:", {
-        width: result.canvas.width,
-        height: result.canvas.height,
-      });
-      logger.log("验证码截图成功");
-      logScreenshotPreview(result, 400, 300);
-      return result;
-    } catch (error) {
-      logger.error("截图失败:", error);
-      return null;
-    }
-  }, [containerId]);
-
-  // Auto solve captcha using provider
+  // Auto solve wrapper
   const autoSolveCaptcha = useCallback(async (): Promise<string> => {
-    const outerContainer = getOuterContainer();
-    if (!outerContainer) throw new Error("未找到外部容器");
+    const parentContainer = document.getElementById(captchaInfo.containerId);
+    if (!parentContainer) throw new Error("未找到外部容器");
 
-    // Wait and capture screenshot
+    // Wait for animation/render
     await new Promise((resolve) =>
       setTimeout(resolve, CAPTCHA_DELAYS.SCREENSHOT),
     );
-    const captureResult = await captureGeeTestBox();
-    if (!captureResult) throw new Error("截图失败");
 
-    const { base64, canvas } = captureResult;
-    logger.log(`${provider.name}: 开始识别验证码...`);
-
-    // Call provider to solve
-    const solveResult = await provider.solve({
-      image: base64,
-      type: ProviderCaptchaType.SLIDE,
-    });
+    // Delegate specific solving logic to the child component
+    const solveResult = await onAutoSolve(parentContainer, provider);
 
     if (solveResult.code !== CaptchaSolveCode.SUCCESS) {
       throw new Error(`${provider.name} 识别失败: ${solveResult.message}`);
     }
 
-    if (solveResult.data.points.length === 0) {
-      throw new Error(`${provider.name} 识别结果无效: 无坐标点`);
-    }
-
-    const xPosition = solveResult.data.points[0].x;
-    logger.log(
-      `${provider.name}: 识别成功, X坐标:`,
-      xPosition,
-      "ID:",
-      solveResult.data.captchaId,
-    );
-
-    // Save result and draw debug overlay
+    // Save result
     refs.current.solveResult = solveResult;
-    drawDebugOverlay(canvas, {
-      type: "vertical-line",
-      points: [{ x: xPosition }],
-      providerName: provider.name,
-    });
-
-    // Find GeeTest elements
-    const elements = findGeeTestElements(outerContainer);
-
-    if (!elements.sliderBtn || !elements.sliderTrack) {
-      logger.log(`${provider.name}: 滑块元素调试:`, {
-        sliderContainer: elements.sliderContainer?.className,
-        sliderBtn: elements.sliderBtn?.className,
-        sliderTrack: elements.sliderTrack?.className,
-      });
-      throw new Error("未找到滑块按钮元素");
-    }
-
-    if (!elements.sliceElement || !elements.captchaWindow) {
-      logger.log(`${provider.name}: 拼图块元素调试:`, {
-        sliceElement: elements.sliceElement?.className,
-        captchaWindow: elements.captchaWindow?.className,
-      });
-      throw new Error("未找到拼图块元素");
-    }
-
-    // Build bypass context and execute
-    const bypassContext: GeeTestSlideBypassContext = {
-      container: outerContainer,
-      sliderBtn: elements.sliderBtn,
-      sliderTrack: elements.sliderTrack,
-      sliceElement: elements.sliceElement,
-      captchaWindow: elements.captchaWindow,
-      canvasWidth: canvas.width,
-    };
-
-    if (!provider.bypassGeeTestSlide) {
-      throw new Error(`${provider.name} 不支持 GeeTest 滑块 bypass`);
-    }
-
-    logger.log(`${provider.name}: 开始执行滑块 bypass...`);
-    const bypassResult = await provider.bypassGeeTestSlide(
-      bypassContext,
-      solveResult,
-    );
-
-    if (!bypassResult.success) {
-      throw new Error(`${provider.name} bypass 失败: ${bypassResult.message}`);
-    }
-
-    logger.log(`${provider.name}: 滑块 bypass 完成`);
     return solveResult.data.captchaId;
-  }, [getOuterContainer, captureGeeTestBox, provider]);
+  }, [captchaInfo.containerId, provider, onAutoSolve]);
 
-  // Handle successful validation
+  // Handle successful validation (Front-end)
   const handleSuccess = useCallback(async () => {
     const captcha = refs.current.captcha;
     if (!captcha) return;
@@ -214,10 +128,7 @@ export function GeeTestV4Captcha({
             `${provider.name}: 调用报错接口, ID:`,
             refs.current.recognitionId,
           );
-          const reportResult = await provider.reportError(
-            refs.current.recognitionId,
-          );
-          logger.log(`${provider.name}: 报错结果:`, reportResult);
+          await provider.reportError(refs.current.recognitionId);
         } catch (reportError) {
           logger.error(`${provider.name}: 报错失败:`, reportError);
         }
@@ -278,11 +189,11 @@ export function GeeTestV4Captcha({
     setIsLoading(false);
     refs.current.retryCount = 0;
 
-    const outerContainer = getOuterContainer();
-    if (!outerContainer) return;
+    if (!containerRef.current) return;
 
     setTimeout(() => {
-      autoClickCaptchaButton(outerContainer);
+      if (!containerRef.current) return;
+      autoClickCaptchaButton(containerRef.current);
 
       setTimeout(async () => {
         try {
@@ -300,7 +211,7 @@ export function GeeTestV4Captcha({
         }
       }, CAPTCHA_DELAYS.IMAGE_LOAD);
     }, CAPTCHA_DELAYS.AUTO_CLICK);
-  }, [provider, getOuterContainer, autoSolveCaptcha, onComplete]);
+  }, [provider, containerRef, autoSolveCaptcha, onComplete]);
 
   // Handle captcha close
   const handleClose = useCallback(() => {
@@ -311,7 +222,6 @@ export function GeeTestV4Captcha({
   // Initialize captcha
   useEffect(() => {
     let isMounted = true;
-    // Capture ref value at effect creation time per eslint react-hooks/exhaustive-deps
     const currentRefs = refs.current;
 
     const initCaptcha = async () => {
@@ -328,8 +238,8 @@ export function GeeTestV4Captcha({
         }
 
         const config: GeeTest4Config = {
-          captchaId: captchaType.geetestId || "",
-          riskType: captchaType.riskType,
+          captchaId: captchaInfo.geetestId || "",
+          riskType: captchaInfo.riskType,
           product: "float",
           language: "zh-cn",
           onError: handleError,
@@ -371,7 +281,7 @@ export function GeeTestV4Captcha({
       }
     };
   }, [
-    captchaType,
+    captchaInfo,
     handleSuccess,
     handleFail,
     handleError,
@@ -379,10 +289,11 @@ export function GeeTestV4Captcha({
     handleClose,
   ]);
 
-  // Determine container visibility
   const containerClassName = useMemo(
     () =>
-      `flex justify-center items-center ${isLoading || loadError ? "hidden" : ""}`,
+      `flex justify-center items-center ${
+        isLoading || loadError ? "hidden" : ""
+      }`,
     [isLoading, loadError],
   );
 
@@ -417,5 +328,3 @@ export function GeeTestV4Captcha({
     </div>
   );
 }
-
-export default GeeTestV4Captcha;

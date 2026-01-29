@@ -1,3 +1,4 @@
+import type { CaptchaInfo } from "../../../../types/type";
 import {
   BaseCaptchaProvider,
   CaptchaSolveCode,
@@ -5,19 +6,19 @@ import {
   type CaptchaReportErrorResult,
   type CaptchaSolveRequest,
   type CaptchaSolveResult,
-} from "../type/provider";
+} from "../../type/provider";
 import { AegirClient, type AegirOptions } from "./client";
 
 /**
- * Aegir 验证码提供者
+ * Aegir Geetest Word 验证码提供者
  * 继承 BaseCaptchaProvider 以复用通用的 bypass 方法
  */
-export class AegirCaptchaProvider extends BaseCaptchaProvider {
+export class AegirGeetestWordProvider extends BaseCaptchaProvider {
   readonly name = ProviderNames.AEGIR;
   private client: AegirClient;
 
-  constructor(options?: AegirOptions) {
-    super();
+  constructor(captchaInfo: CaptchaInfo, options?: AegirOptions) {
+    super(captchaInfo);
     this.client = new AegirClient(options);
   }
 

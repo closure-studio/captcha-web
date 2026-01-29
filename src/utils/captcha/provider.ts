@@ -1,5 +1,6 @@
-import { AegirCaptchaProvider } from "./aegir/aegir";
-import type { AegirOptions } from "./aegir/client";
+import type { CaptchaInfo } from "../../types/type";
+import { AegirGeetestWordProvider } from "./aegir/word/aegirWord";
+import type { AegirOptions } from "./aegir/word/client";
 import type { TTShituOptions } from "./ttshitu/client";
 import { TTShituCaptchaProvider } from "./ttshitu/ttshitu";
 import type { ICaptchaProvider } from "./type/provider";
@@ -34,8 +35,11 @@ export class CaptchaProviderFactory {
   /**
    * 创建 Aegir 提供者
    */
-  static createAegir(options?: AegirOptions): AegirCaptchaProvider {
-    const provider = new AegirCaptchaProvider(options);
+  static createAegir(
+    captchaInfo: CaptchaInfo,
+    options: AegirOptions,
+  ): AegirGeetestWordProvider {
+    const provider = new AegirGeetestWordProvider(captchaInfo, options);
     this.register(provider);
     return provider;
   }
@@ -43,8 +47,11 @@ export class CaptchaProviderFactory {
   /**
    * 创建 TTShitu 提供者
    */
-  static createTTShitu(options?: TTShituOptions): TTShituCaptchaProvider {
-    const provider = new TTShituCaptchaProvider(options);
+  static createTTShitu(
+    captchaInfo: CaptchaInfo,
+    options: TTShituOptions,
+  ): TTShituCaptchaProvider {
+    const provider = new TTShituCaptchaProvider(options, captchaInfo);
     this.register(provider);
     return provider;
   }

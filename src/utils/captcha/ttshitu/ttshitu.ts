@@ -1,3 +1,4 @@
+import type { CaptchaInfo } from "../../../types/type";
 import {
   BaseCaptchaProvider,
   CaptchaSolveCode,
@@ -11,10 +12,7 @@ import {
   type GeeTestSlideBypassContext,
 } from "../type/provider";
 import { TTShituClient, TTShituTypeId, type TTShituOptions } from "./client";
-import {
-  TTShituSlideBypass,
-  type TTShituSlideBypassConfig,
-} from "./slide";
+import { TTShituSlideBypass, type TTShituSlideBypassConfig } from "./slide";
 
 /**
  * TTShitu 验证码提供者配置
@@ -35,8 +33,11 @@ export class TTShituCaptchaProvider extends BaseCaptchaProvider {
   private lastResultId: string = "";
   private slideBypass: TTShituSlideBypass;
 
-  constructor(options?: TTShituCaptchaProviderOptions) {
-    super();
+  constructor(
+    options: TTShituCaptchaProviderOptions,
+    captchaInfo: CaptchaInfo,
+  ) {
+    super(captchaInfo);
     this.client = new TTShituClient(options);
     this.slideBypass = new TTShituSlideBypass(options?.slideBypassConfig);
   }

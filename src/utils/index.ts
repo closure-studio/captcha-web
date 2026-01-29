@@ -4,8 +4,8 @@ export * from "./captcha/type/provider";
 export * from "./captcha/ttshitu/ttshitu";
 export * from "./captcha/ttshitu/client";
 export * from "./captcha/ttshitu/slide";
-export * from "./captcha/aegir/aegir";
-export * from "./captcha/aegir/client";
+export * from "./captcha/aegir/word/aegirWord";
+export * from "./captcha/aegir/word/client";
 export * from "./geetest/myServer";
 
 // Screenshot utilities

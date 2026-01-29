@@ -3,7 +3,7 @@
  */
 import type { GeeTest4Instance } from "./geetest4.d.ts";
 import type { CaptchaSolveResult } from "../utils/captcha/type/provider.ts";
-import type { CaptchaType } from "./type.ts";
+import type { CaptchaInfo } from "./type.ts";
 import type { ICaptchaProvider } from "../utils/captcha/type/provider.ts";
 
 /**
@@ -11,11 +11,9 @@ import type { ICaptchaProvider } from "../utils/captcha/type/provider.ts";
  */
 export interface GeeTestV4CaptchaProps {
   /** 验证码类型配置 */
-  captchaType: CaptchaType;
+  captchaInfo: CaptchaInfo;
   /** 验证码提供者实例 */
   provider: ICaptchaProvider;
-  /** 容器ID，用于隔离多个验证码实例 */
-  containerId: string;
   /** 验证完成回调（包含服务器验证结果） */
   onComplete?: () => void;
 }

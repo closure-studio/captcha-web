@@ -1,3 +1,10 @@
+import type { CaptchaInfo } from "../../../types/type";
+import { createModuleLogger } from "../../logger";
+import {
+  captureScreenshot,
+  logScreenshotPreview,
+  type ScreenshotResult,
+} from "../../screenshot";
 /**
  * 验证码识别结果状态码
  */
@@ -20,10 +27,10 @@ export const ProviderNames = {
  * 验证码类型
  */
 export const CaptchaType = {
-  /** 点选验证码 */
-  CLICK: "click",
   /** 滑块验证码 */
   SLIDE: "slide",
+  WORLD: "world",
+  ICON: "icon",
 } as const;
 
 export type CaptchaTypeValue = (typeof CaptchaType)[keyof typeof CaptchaType];
@@ -129,6 +136,8 @@ export interface BypassResult {
 export interface ICaptchaProvider {
   /** 提供者名称 */
   readonly name: string;
+  /** 验证码信息 */
+  readonly captchaInfo: CaptchaInfo;
 
   /**
    * 识别验证码
@@ -166,6 +175,8 @@ export interface ICaptchaProvider {
     context: GeeTestClickBypassContext,
     solveResult: CaptchaSolveResult,
   ): Promise<BypassResult>;
+
+  capture(containerId?: string): Promise<ScreenshotResult | null>;
 }
 
 /**
@@ -175,6 +186,12 @@ export interface ICaptchaProvider {
 export abstract class BaseCaptchaProvider implements ICaptchaProvider {
   /** 提供者名称 - 子类必须实现 */
   abstract readonly name: string;
+  readonly captchaInfo: CaptchaInfo;
+  protected readonly logger = createModuleLogger("BaseCaptchaProvider");
+
+  constructor(captchaInfo: CaptchaInfo) {
+    this.captchaInfo = captchaInfo;
+  }
 
   /**
    * 识别验证码 - 子类必须实现
@@ -274,5 +291,31 @@ export abstract class BaseCaptchaProvider implements ICaptchaProvider {
    */
   protected sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * 截图 GeeTest 容器，供子类调用
+   * @param containerId 容器 DOM 的 id
+   * @returns 截图结果或 null
+   */
+  async capture(containerId?: string): Promise<ScreenshotResult | null> {
+    try {
+      let captureContainerId = this.captchaInfo.containerId;
+      if (containerId) {
+        captureContainerId = containerId;
+      }
+      this.logger.log("截图目标容器ID:", captureContainerId);
+      const result = await captureScreenshot(captureContainerId);
+      this.logger.log("截图元素尺寸:", {
+        width: result.canvas.width,
+        height: result.canvas.height,
+      });
+      this.logger.log("验证码截图成功");
+      logScreenshotPreview(result, 400, 300);
+      return result;
+    } catch (error) {
+      this.logger.error("截图失败:", error);
+      return null;
+    }
   }
 }

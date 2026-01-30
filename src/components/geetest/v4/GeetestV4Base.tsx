@@ -26,6 +26,11 @@ import {
   LoadingSpinner,
   StatusIndicator,
 } from "../../ui/index.ts";
+import {
+  type CaptchaCollector,
+  useCaptchaCollector,
+} from "./collector/useCaptchaCollector.ts";
+import { uploadCaptchaData } from "../../../utils/captcha/upload.ts";
 
 const logger = createModuleLogger("GeeTestV4Base");
 
@@ -36,6 +41,7 @@ export interface GeetestV4BaseProps extends GeeTestV4CaptchaProps {
   onAutoSolve: (
     container: HTMLElement,
     provider: ICaptchaProvider,
+    collector: CaptchaCollector,
   ) => Promise<CaptchaSolveResult>;
 }
 
@@ -62,10 +68,14 @@ export function GeetestV4Base(props: GeetestV4BaseProps) {
   const [status, setStatus] = useState<CaptchaStatus>("idle");
   const [statusMessage, setStatusMessage] = useState("");
 
+  const collector = useCaptchaCollector();
+
   // Auto solve wrapper
   const autoSolveCaptcha = useCallback(async (): Promise<string> => {
     const parentContainer = document.getElementById(captchaInfo.containerId);
     if (!parentContainer) throw new Error("未找到外部容器");
+
+    collector.reset();
 
     // Wait for animation/render
     await new Promise((resolve) =>
@@ -73,7 +83,7 @@ export function GeetestV4Base(props: GeetestV4BaseProps) {
     );
 
     // Delegate specific solving logic to the child component
-    const solveResult = await onAutoSolve(parentContainer, provider);
+    const solveResult = await onAutoSolve(parentContainer, provider, collector);
 
     if (solveResult.code !== CaptchaSolveCode.SUCCESS) {
       throw new Error(`${provider.name} 识别失败: ${solveResult.message}`);
@@ -82,7 +92,7 @@ export function GeetestV4Base(props: GeetestV4BaseProps) {
     // Save result
     refs.current.solveResult = solveResult;
     return solveResult.data.captchaId;
-  }, [captchaInfo.containerId, provider, onAutoSolve]);
+  }, [captchaInfo.containerId, provider, onAutoSolve, collector]);
 
   // Handle successful validation (Front-end)
   const handleSuccess = useCallback(async () => {
@@ -103,6 +113,21 @@ export function GeetestV4Base(props: GeetestV4BaseProps) {
       if (response.result === "success") {
         setStatus("success");
         setStatusMessage(response.msg || "验证成功");
+
+        // Collect and Upload Data
+        collector.setMetadata("provider", provider.name);
+        collector.setMetadata("geetestId", captchaInfo.geetestId);
+        collector.setMetadata("challenge", captchaInfo.challenge);
+        collector.setMetadata("riskType", captchaInfo.riskType);
+        collector.setMetadata("validateResult", result);
+        collector.setMetadata("serverResult", response);
+
+        uploadCaptchaData({
+          ...collector.getArgs(),
+          providerName: provider.name,
+          captchaType: captchaInfo.type || "unknown",
+        });
+
         onComplete?.();
       } else {
         setStatus("error");
@@ -114,7 +139,7 @@ export function GeetestV4Base(props: GeetestV4BaseProps) {
       setStatusMessage(getErrorMessage(error, "服务器验证失败"));
       onComplete?.();
     }
-  }, [onComplete]);
+  }, [captchaInfo, collector, onComplete, provider]);
 
   // Handle validation failure with retry logic
   const handleFail = useCallback(

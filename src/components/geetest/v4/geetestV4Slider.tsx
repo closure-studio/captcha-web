@@ -11,6 +11,7 @@ import { createModuleLogger } from "../../../utils/logger.ts";
 import { drawDebugOverlay } from "../../../utils/screenshot.ts";
 import type { GeeTestV4CaptchaProps } from "../../../types/captcha.ts";
 import { GeetestV4Base } from "./GeetestV4Base.tsx";
+import type { CaptchaCollector } from "./collector/useCaptchaCollector.ts";
 
 const logger = createModuleLogger("GeeTestV4Slider");
 
@@ -24,13 +25,16 @@ export function GeetestV4Slider(props: GeeTestV4CaptchaProps) {
   const handleAutoSolve = useCallback(
     async (
       container: HTMLElement,
-      provider: ICaptchaProvider
+      provider: ICaptchaProvider,
+      collector: CaptchaCollector,
     ): Promise<CaptchaSolveResult> => {
       // 1. Capture Screenshot
       const captureResult = await provider.capture(captchaInfo.containerId);
       if (!captureResult) throw new Error("截图失败");
 
       const { base64, canvas } = captureResult;
+      collector.addCapture("original", base64);
+
       logger.log(`${provider.name}: 开始识别验证码...`);
 
       // 2. Solve
@@ -61,6 +65,8 @@ export function GeetestV4Slider(props: GeeTestV4CaptchaProps) {
         points: [{ x: xPosition }],
         providerName: provider.name,
       });
+
+      collector.addCapture("marked", canvas.toDataURL("image/png"));
 
       // 4. Find Elements
       const elements = findGeeTestElements(container);

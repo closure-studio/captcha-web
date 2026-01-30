@@ -1,7 +1,7 @@
 import axios from "axios";
 
 // Aegir Captcha API 基础 URL
-const AEGIR_API_URL = "http://114.132.98.164:8899";
+const AEGIR_API_URL = "https://captcha-aegir.dltest.workers.dev";
 
 /**
  * Aegir Captcha 请求参数

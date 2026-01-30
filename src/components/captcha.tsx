@@ -14,13 +14,16 @@ export const MyCaptchaSolver = (props: MyCaptchaSolverProps): JSX.Element => {
   const { captchaInfo, handleComplete } = props;
 
   const provider = useMemo(() => {
-    switch (captchaInfo.provider) {
-      case "geetest_v4":
-        return CaptchaProviderFactory.createTTShitu(captchaInfo, {});
-      // 未来可扩展其他验证码提供者
-      default:
-        return CaptchaProviderFactory.createTTShitu(captchaInfo, {});
+    if (captchaInfo.type === "word") {
+      return CaptchaProviderFactory.createTTShituWorld(captchaInfo, {});
     }
+    if (captchaInfo.type === "icon") {
+      return CaptchaProviderFactory.createTTShituSlider(captchaInfo, {});
+    }
+    if (captchaInfo.type === "slide") {
+      return CaptchaProviderFactory.createTTShituSlider(captchaInfo, {});
+    }
+    return CaptchaProviderFactory.createTTShituSlider(captchaInfo, {});
   }, [captchaInfo]);
 
   // 根据 captchaInfo.provider 渲染不同的验证码组件

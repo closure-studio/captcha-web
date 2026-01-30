@@ -2,7 +2,8 @@ import type { CaptchaInfo } from "../../types/type";
 import { AegirGeetestWordProvider } from "./aegir/word/aegirWord";
 import type { AegirOptions } from "./aegir/word/client";
 import type { TTShituOptions } from "./ttshitu/client";
-import { TTShituCaptchaProvider } from "./ttshitu/ttshitu";
+import { TTShituSlide } from "./ttshitu/ttshituSlide";
+import { TTShituWorld } from "./ttshitu/ttshituWorld";
 import type { ICaptchaProvider } from "./type/provider";
 
 /**
@@ -35,7 +36,7 @@ export class CaptchaProviderFactory {
   /**
    * 创建 Aegir 提供者
    */
-  static createAegir(
+  static createAegirWord(
     captchaInfo: CaptchaInfo,
     options: AegirOptions,
   ): AegirGeetestWordProvider {
@@ -44,14 +45,20 @@ export class CaptchaProviderFactory {
     return provider;
   }
 
-  /**
-   * 创建 TTShitu 提供者
-   */
-  static createTTShitu(
+  static createTTShituSlider(
     captchaInfo: CaptchaInfo,
     options: TTShituOptions,
-  ): TTShituCaptchaProvider {
-    const provider = new TTShituCaptchaProvider(options, captchaInfo);
+  ): TTShituSlide {
+    const provider = new TTShituSlide(captchaInfo, options);
+    this.register(provider);
+    return provider;
+  }
+
+  static createTTShituWorld(
+    captchaInfo: CaptchaInfo,
+    options: TTShituOptions,
+  ): TTShituWorld {
+    const provider = new TTShituWorld(captchaInfo, options);
     this.register(provider);
     return provider;
   }

@@ -34,7 +34,7 @@ export async function uploadCaptchaData(args: UploadArgs) {
   // Add metadata
   files.push({
     path: `${baseDir}/data.json`,
-    data: btoa(JSON.stringify(metadata, null, 2)) // Base64 encode JSON
+    data: btoa(unescape(encodeURIComponent(JSON.stringify(metadata, null, 2)))) // Base64 encode JSON (UTF-8 safe)
   });
 
   try {

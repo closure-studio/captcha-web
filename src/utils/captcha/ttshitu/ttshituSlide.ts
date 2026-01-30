@@ -1,16 +1,23 @@
-import type {
-  BypassResult,
-  CaptchaSolveResult,
-  GeeTestSlideBypassContext,
+import type { CaptchaInfo } from "../../../types/type";
+import { createModuleLogger } from "../../logger";
+import {
+  BaseCaptchaProvider,
+  CaptchaSolveCode,
+  ProviderNames,
+  type BypassResult,
+  type CaptchaReportErrorResult,
+  type CaptchaSolveRequest,
+  type CaptchaSolveResult,
+  type GeeTestSlideBypassContext,
 } from "../type/provider";
-import { createModuleLogger } from "../../../utils/logger";
+import { TTShituClient, type TTShituOptions } from "./client";
 
 const logger = createModuleLogger("TTShitu Slide");
 
 /**
  * TTShitu 滑块验证码 bypass 配置
  */
-export interface TTShituSlideBypassConfig {
+export interface TTShituSlideConfig {
   /** X轴偏移量校正值，用于修正识别结果的偏差 */
   xOffset?: number;
   /** 滑动步数，影响滑动速度和平滑度 */
@@ -27,7 +34,7 @@ export interface TTShituSlideBypassConfig {
 /**
  * 默认配置
  */
-const DEFAULT_CONFIG: Required<TTShituSlideBypassConfig> = {
+const DEFAULT_CONFIG: Required<TTShituSlideConfig> = {
   xOffset: -10,
   slideSteps: 30,
   stepDelay: { min: 15, max: 25 },
@@ -38,11 +45,83 @@ const DEFAULT_CONFIG: Required<TTShituSlideBypassConfig> = {
  * TTShitu 滑块验证码 bypass 执行器
  * 专门处理 TTShitu 返回的滑块识别结果，并执行 bypass 操作
  */
-export class TTShituSlideBypass {
-  private config: Required<TTShituSlideBypassConfig>;
+export class TTShituSlide extends BaseCaptchaProvider {
+  private config: Required<TTShituSlideConfig>;
 
-  constructor(config?: TTShituSlideBypassConfig) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
+  readonly name = ProviderNames.TTSHITU;
+  private client: TTShituClient;
+
+  constructor(captchaInfo: CaptchaInfo, options?: TTShituOptions) {
+    super(captchaInfo);
+    this.client = new TTShituClient(options);
+    this.config = DEFAULT_CONFIG;
+  }
+
+  /**
+   * 识别滑块验证码
+   * @param request 识别请求参数
+   * @returns 统一格式的识别结果
+   */
+  async solve(request: CaptchaSolveRequest): Promise<CaptchaSolveResult> {
+    try {
+      logger.log("开始识别滑块验证码");
+      const result = await this.client.predict(request.image);
+      const x = parseInt(result.result, 10);
+
+      if (isNaN(x)) {
+        return {
+          code: CaptchaSolveCode.FAILED,
+          message: `识别结果无效: ${result.result}`,
+          data: {
+            captchaId: result.id,
+            points: [],
+          },
+        };
+      }
+
+      logger.log("识别成功, X坐标:", x);
+      return {
+        code: CaptchaSolveCode.SUCCESS,
+        message: "识别成功",
+        data: {
+          captchaId: result.id,
+          points: [{ x, y: 0 }],
+        },
+      };
+    } catch (error) {
+      logger.error("识别失败:", error);
+      return {
+        code: CaptchaSolveCode.FAILED,
+        message: error instanceof Error ? error.message : "识别失败",
+        data: {
+          captchaId: "",
+          points: [],
+        },
+      };
+    }
+  }
+
+  /**
+   * 报告识别错误
+   * @param captchaId 验证码ID
+   * @returns 报错结果
+   */
+  async reportError(captchaId: string): Promise<CaptchaReportErrorResult> {
+    try {
+      logger.log("报告识别错误, captchaId:", captchaId);
+      const result = await this.client.reportError(captchaId);
+      logger.log("报错成功:", result.result);
+      return {
+        success: true,
+        message: result.result,
+      };
+    } catch (error) {
+      logger.error("报错失败:", error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "报错失败",
+      };
+    }
   }
 
   /**
@@ -52,9 +131,9 @@ export class TTShituSlideBypass {
    * @param solveResult TTShitu 的识别结果
    * @returns bypass 执行结果
    */
-  async execute(
+  async bypassGeeTestSlide(
     context: GeeTestSlideBypassContext,
-    solveResult: CaptchaSolveResult
+    solveResult: CaptchaSolveResult,
   ): Promise<BypassResult> {
     try {
       const { sliderBtn, sliceElement, captchaWindow, canvasWidth } = context;
@@ -142,10 +221,7 @@ export class TTShituSlideBypass {
     endX: number;
   }): void {
     logger.log("========== 滑动调试信息 ==========");
-    logger.log(
-      "识别返回的 targetX (canvas坐标):",
-      info.targetX
-    );
+    logger.log("识别返回的 targetX (canvas坐标):", info.targetX);
     logger.log("Canvas 宽度:", info.canvasWidth);
     logger.log("验证码窗口 DOM 宽度:", info.windowWidth);
     logger.log("缩放比例 (DOM/Canvas):", info.scaleFactor);
@@ -174,7 +250,7 @@ export class TTShituSlideBypass {
     startX: number,
     startY: number,
     endX: number,
-    endY: number
+    endY: number,
   ): Promise<void> {
     // 创建鼠标事件
     const createMouseEvent = (type: string, x: number, y: number) => {
@@ -226,7 +302,7 @@ export class TTShituSlideBypass {
       const randomY = startY + (Math.random() - 0.5) * 2;
 
       await new Promise((resolve) =>
-        setTimeout(resolve, delayMin + Math.random() * (delayMax - delayMin))
+        setTimeout(resolve, delayMin + Math.random() * (delayMax - delayMin)),
       );
 
       sliderBtn.dispatchEvent(createMouseEvent("mousemove", currentX, randomY));
@@ -246,31 +322,4 @@ export class TTShituSlideBypass {
     sliderBtn.dispatchEvent(createTouchEvent("touchend", endX, endY));
     document.dispatchEvent(createMouseEvent("mouseup", endX, endY));
   }
-}
-
-/**
- * 创建 TTShitu 滑块 bypass 执行器的便捷函数
- * @param config 可选配置
- * @returns TTShituSlideBypass 实例
- */
-export function createTTShituSlideBypass(
-  config?: TTShituSlideBypassConfig
-): TTShituSlideBypass {
-  return new TTShituSlideBypass(config);
-}
-
-/**
- * 直接执行 TTShitu 滑块 bypass 的便捷函数
- * @param context bypass 上下文
- * @param solveResult 识别结果
- * @param config 可选配置
- * @returns bypass 执行结果
- */
-export async function executeTTShituSlideBypass(
-  context: GeeTestSlideBypassContext,
-  solveResult: CaptchaSolveResult,
-  config?: TTShituSlideBypassConfig
-): Promise<BypassResult> {
-  const bypass = new TTShituSlideBypass(config);
-  return bypass.execute(context, solveResult);
 }

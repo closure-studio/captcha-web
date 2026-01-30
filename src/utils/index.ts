@@ -1,9 +1,8 @@
 // Re-export all captcha-related utilities
 export * from "./captcha/provider";
 export * from "./captcha/type/provider";
-export * from "./captcha/ttshitu/ttshitu";
 export * from "./captcha/ttshitu/client";
-export * from "./captcha/ttshitu/slide";
+export * from "./captcha/ttshitu/ttshituSlide";
 export * from "./captcha/aegir/word/aegirWord";
 export * from "./captcha/aegir/word/client";
 export * from "./geetest/myServer";

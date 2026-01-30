@@ -1,4 +1,4 @@
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useMemo } from "react";
 
 export interface CaptchaCollector {
   addCapture: (name: string, base64: string) => void;
@@ -16,7 +16,6 @@ export function useCaptchaCollector(): CaptchaCollector {
   }, []);
 
   const setMetadata = useCallback((key: string, value: unknown) => {
-
     metadataRef.current[key] = value;
   }, []);
 
@@ -30,5 +29,8 @@ export function useCaptchaCollector(): CaptchaCollector {
     metadataRef.current = {};
   }, []);
 
-  return { addCapture, setMetadata, getArgs, reset };
+  return useMemo(
+    () => ({ addCapture, setMetadata, getArgs, reset }),
+    [addCapture, setMetadata, getArgs, reset]
+  );
 }

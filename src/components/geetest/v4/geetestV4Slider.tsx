@@ -60,13 +60,13 @@ export function GeetestV4Slider(props: GeeTestV4CaptchaProps) {
       );
 
       // 3. Draw Debug Overlay
-      drawDebugOverlay(canvas, {
+      const markedCanvas = drawDebugOverlay(canvas, {
         type: "vertical-line",
         points: [{ x: xPosition }],
         providerName: provider.name,
       });
 
-      collector.addCapture("marked", canvas.toDataURL("image/png"));
+      collector.addCapture("marked", markedCanvas.toDataURL("image/png"));
 
       // 4. Find Elements
       const elements = findGeeTestElements(container);

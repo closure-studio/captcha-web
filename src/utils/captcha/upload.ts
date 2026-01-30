@@ -6,14 +6,14 @@ const logger = createModuleLogger("CaptchaUploader");
 interface UploadArgs {
   captures: Record<string, string>;
   metadata: Record<string, unknown>;
-  providerName: string;
+  captchaProvider: string;
   captchaType: string;
+  containerId: string;
 }
 
 export async function uploadCaptchaData(args: UploadArgs) {
-  const { captures, metadata, providerName, captchaType } = args;
-  const timestamp = Date.now();
-  const baseDir = `captchas/${providerName}/${captchaType}/${timestamp}`;
+  const { captures, metadata, captchaProvider, captchaType, containerId } = args;
+  const baseDir = `captchas/${captchaProvider}/${captchaType}/${containerId}`;
 
   const files: R2UploadFile[] = [];
 

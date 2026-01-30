@@ -103,6 +103,25 @@ export function GeetestV4Base(props: GeetestV4BaseProps) {
     if (!result) return;
 
     logger.log("GeeTest v4 前端验证成功:", result);
+
+    // Collect and Upload Data
+    collector.setMetadata("solver", provider.name);
+    collector.setMetadata("geetestId", captchaInfo.geetestId);
+    collector.setMetadata("challenge", captchaInfo.challenge);
+    collector.setMetadata("riskType", captchaInfo.riskType);
+    collector.setMetadata("validateResult", result);
+    // add solveResult data
+    if (refs.current.solveResult) {
+      collector.setMetadata("solveResult", refs.current.solveResult);
+    }
+
+    uploadCaptchaData({
+      ...collector.getArgs(),
+      captchaProvider: captchaInfo.provider,
+      captchaType: captchaInfo.type || "unknown",
+      containerId: captchaInfo.containerId,
+    });
+
     setStatus("validating");
     setStatusMessage("正在验证...");
 
@@ -113,21 +132,6 @@ export function GeetestV4Base(props: GeetestV4BaseProps) {
       if (response.result === "success") {
         setStatus("success");
         setStatusMessage(response.msg || "验证成功");
-
-        // Collect and Upload Data
-        collector.setMetadata("provider", provider.name);
-        collector.setMetadata("geetestId", captchaInfo.geetestId);
-        collector.setMetadata("challenge", captchaInfo.challenge);
-        collector.setMetadata("riskType", captchaInfo.riskType);
-        collector.setMetadata("validateResult", result);
-        collector.setMetadata("serverResult", response);
-
-        uploadCaptchaData({
-          ...collector.getArgs(),
-          providerName: provider.name,
-          captchaType: captchaInfo.type || "unknown",
-        });
-
         onComplete?.();
       } else {
         setStatus("error");

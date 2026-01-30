@@ -1,4 +1,4 @@
-import { type JSX } from "react";
+import { type JSX, useMemo } from "react";
 import type { CaptchaInfo } from "../types/type";
 import { CaptchaProviderFactory } from "../utils";
 import GeetestV4Slider from "./geetest/v4/geetestV4Slider";
@@ -13,7 +13,7 @@ interface MyCaptchaSolverProps {
 export const MyCaptchaSolver = (props: MyCaptchaSolverProps): JSX.Element => {
   const { captchaInfo, handleComplete } = props;
 
-  const createProvider = () => {
+  const provider = useMemo(() => {
     switch (captchaInfo.provider) {
       case "geetest_v4":
         return CaptchaProviderFactory.createTTShitu(captchaInfo, {});
@@ -21,13 +21,12 @@ export const MyCaptchaSolver = (props: MyCaptchaSolverProps): JSX.Element => {
       default:
         return CaptchaProviderFactory.createTTShitu(captchaInfo, {});
     }
-  };
+  }, [captchaInfo]);
 
   // 根据 captchaInfo.provider 渲染不同的验证码组件
   const renderCaptchaComponent = () => {
     switch (captchaInfo.provider) {
       case "geetest_v4": {
-        const provider = createProvider();
         const commonProps = {
           captchaInfo,
           provider,

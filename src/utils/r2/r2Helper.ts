@@ -3,8 +3,8 @@
 
 
 import axios from 'axios';
-// Use environment variable for the captcha store API base URL
-const CAPTCHA_STORE_API_BASE_URL = import.meta.env.VITE_CAPTCHA_STORE_API_BASE_URL as string;
+// Use environment variable for the captcha server host
+const CAPTCHA_SERVER_HOST = import.meta.env.VITE_CAPTCHA_SERVER_HOST as string;
 
 export interface R2UploadFile {
   path: string;
@@ -29,18 +29,10 @@ export interface R2HealthResponse {
 }
 
 /**
- * Health check for the captcha-store service.
- */
-export async function checkR2Health(): Promise<R2HealthResponse> {
-  const res = await axios.get(`${CAPTCHA_STORE_API_BASE_URL}/health`);
-  return res.data;
-}
-
-/**
  * Upload one or more files to R2 storage.
  * @param files Array of files to upload
  */
 export async function uploadR2Files(files: R2UploadFile[]): Promise<R2UploadResponse> {
-  const res = await axios.post(`${CAPTCHA_STORE_API_BASE_URL}/upload`, { files });
+  const res = await axios.post(`${CAPTCHA_SERVER_HOST}/store/upload`, { files });
   return res.data;
 }

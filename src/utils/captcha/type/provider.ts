@@ -21,6 +21,7 @@ export type CaptchaSolveCodeValue =
 export const ProviderNames = {
   AEGIR: "Aegir",
   TTSHITU: "TTShitu",
+  GEMINI: "Gemini",
 } as const;
 
 /**
@@ -51,6 +52,8 @@ export interface CaptchaSolveData {
   captchaId: string;
   /** 坐标点数组（点选: 多个点; 滑块: 单个点，只需关注x坐标） */
   points: CaptchaPoint[];
+  /** 额外的截图，用于上传到 R2（如预处理后的图片） */
+  extraCaptures?: Record<string, string>;
 }
 
 /**

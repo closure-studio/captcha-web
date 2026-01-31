@@ -3,24 +3,25 @@ import "./App.css";
 import { MyCaptchaSolver } from "./components/captcha";
 import type { CaptchaInfo } from "./types/type";
 import { generateContainerId } from "./utils";
+import { CAPTCHA_ID } from "./consts/consts";
 
 function App() {
   const [challengeList, setChallengeList] = useState<CaptchaInfo[]>([
-    // {
-    //   containerId: generateContainerId(),
-    //   challenge: "1",
-    //   geetestId: CAPTCHA_ID,
-    //   provider: "geetest_v4",
-    //   type: "slide",
-    // },
     {
       containerId: generateContainerId(),
-      challenge: "122ca1ba-0101-4b26-9842-63c0a1424cc2",
-      geetestId: "54088bb07d2df3c46b79f80300b0abbe",
+      challenge: "1",
+      geetestId: CAPTCHA_ID,
       provider: "geetest_v4",
-      riskType: "word",
-      type: "word",
+      type: "slide",
     },
+    // {
+    //   containerId: generateContainerId(),
+    //   challenge: "122ca1ba-0101-4b26-9842-63c0a1424cc2",
+    //   geetestId: "54088bb07d2df3c46b79f80300b0abbe",
+    //   provider: "geetest_v4",
+    //   riskType: "word",
+    //   type: "word",
+    // },
   ]);
 
   // 用 useRef 持久化定时器映射

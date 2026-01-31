@@ -1,6 +1,7 @@
 import type { CaptchaInfo } from "../../types/type";
 import { AegirGeetestWordProvider } from "./aegir/word/aegirWord";
 import type { AegirOptions } from "./aegir/word/client";
+import { GeminiSlide } from "./gemini/geminiSlide";
 import type { TTShituOptions } from "./ttshitu/client";
 import { TTShituSlide } from "./ttshitu/ttshituSlide";
 import { TTShituWorld } from "./ttshitu/ttshituWorld";
@@ -59,6 +60,15 @@ export class CaptchaProviderFactory {
     options: TTShituOptions,
   ): TTShituWorld {
     const provider = new TTShituWorld(captchaInfo, options);
+    this.register(provider);
+    return provider;
+  }
+
+  static createGeminiSlider(
+    captchaInfo: CaptchaInfo,
+    options: TTShituOptions,
+  ): GeminiSlide {
+    const provider = new GeminiSlide(captchaInfo, options);
     this.register(provider);
     return provider;
   }

@@ -21,7 +21,7 @@ export const MyCaptchaSolver = (props: MyCaptchaSolverProps): JSX.Element => {
       return CaptchaProviderFactory.createTTShituSlider(captchaInfo, {});
     }
     if (captchaInfo.type === "slide") {
-      return CaptchaProviderFactory.createTTShituSlider(captchaInfo, {});
+      return CaptchaProviderFactory.createGeminiSlider(captchaInfo, {});
     }
     return CaptchaProviderFactory.createTTShituSlider(captchaInfo, {});
   }, [captchaInfo]);

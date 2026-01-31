@@ -5,6 +5,7 @@ import {
   CaptchaSolveCode,
   ProviderNames,
   type BypassResult,
+  type CaptchaCollector,
   type CaptchaReportErrorResult,
   type CaptchaSolveRequest,
   type CaptchaSolveResult,
@@ -53,7 +54,7 @@ const DEFAULT_CONFIG: Required<GeminiSlideConfig> = {
     topCrop: 70, // 上部分裁剪像素数 - 可调整
     bottomCrop: 110, // 下部分裁剪像素数 - 可调整
   },
-  xOffset: 0,
+  xOffset: -10,
   slideSteps: 30,
   stepDelay: { min: 15, max: 25 },
   debug: true,
@@ -199,9 +200,13 @@ export class GeminiSlide extends BaseCaptchaProvider {
   /**
    * 识别滑块验证码
    * @param request 识别请求参数
+   * @param collector 数据收集器，用于添加裁剪后的图片
    * @returns 统一格式的识别结果
    */
-  async solve(request: CaptchaSolveRequest): Promise<CaptchaSolveResult> {
+  async solve(
+    request: CaptchaSolveRequest,
+    collector?: CaptchaCollector,
+  ): Promise<CaptchaSolveResult> {
     try {
       logger.log("开始识别滑块验证码");
 
@@ -225,6 +230,9 @@ export class GeminiSlide extends BaseCaptchaProvider {
       // 预处理：裁剪图片高度
       logger.log("开始预处理图片（裁剪高度）...");
       const croppedImage = await this.cropImageHeight(originalImage);
+
+      // 添加裁剪后的图片到 collector
+      collector?.addCapture("cropped", croppedImage);
 
       // 调试输出：裁剪后的图片
       if (this.config.debug) {
@@ -262,9 +270,6 @@ export class GeminiSlide extends BaseCaptchaProvider {
         data: {
           captchaId: "",
           points: [{ x, y: 0 }],
-          extraCaptures: {
-            cropped: croppedImage,
-          },
         },
       };
     } catch (error) {

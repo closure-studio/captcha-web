@@ -40,7 +40,7 @@ export function GeetestV4World(props: GeeTestV4CaptchaProps) {
       const solveResult = await provider.solve({
         image: base64,
         type: ProviderCaptchaType.WORLD,
-      });
+      }, collector);
 
       if (solveResult.code !== CaptchaSolveCode.SUCCESS) {
         throw new Error(`${provider.name} 识别失败: ${solveResult.message}`);

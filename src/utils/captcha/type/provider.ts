@@ -52,8 +52,15 @@ export interface CaptchaSolveData {
   captchaId: string;
   /** 坐标点数组（点选: 多个点; 滑块: 单个点，只需关注x坐标） */
   points: CaptchaPoint[];
-  /** 额外的截图，用于上传到 R2（如预处理后的图片） */
-  extraCaptures?: Record<string, string>;
+}
+
+/**
+ * 验证码数据收集器接口
+ * 用于收集截图和元数据，供后续上传
+ */
+export interface CaptchaCollector {
+  addCapture(name: string, base64: string): void;
+  setMetadata(key: string, value: unknown): void;
 }
 
 /**
@@ -145,9 +152,13 @@ export interface ICaptchaProvider {
   /**
    * 识别验证码
    * @param request 识别请求参数
+   * @param collector 可选的数据收集器，用于添加截图
    * @returns 统一格式的识别结果
    */
-  solve(request: CaptchaSolveRequest): Promise<CaptchaSolveResult>;
+  solve(
+    request: CaptchaSolveRequest,
+    collector?: CaptchaCollector,
+  ): Promise<CaptchaSolveResult>;
 
   /**
    * 报告识别错误
@@ -199,7 +210,10 @@ export abstract class BaseCaptchaProvider implements ICaptchaProvider {
   /**
    * 识别验证码 - 子类必须实现
    */
-  abstract solve(request: CaptchaSolveRequest): Promise<CaptchaSolveResult>;
+  abstract solve(
+    request: CaptchaSolveRequest,
+    collector?: CaptchaCollector,
+  ): Promise<CaptchaSolveResult>;
 
   /**
    * 报告识别错误 - 子类必须实现

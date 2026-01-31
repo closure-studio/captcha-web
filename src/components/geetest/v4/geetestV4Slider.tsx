@@ -41,7 +41,7 @@ export function GeetestV4Slider(props: GeeTestV4CaptchaProps) {
       const solveResult = await provider.solve({
         image: base64,
         type: ProviderCaptchaType.SLIDE,
-      });
+      }, collector);
 
       if (solveResult.code !== CaptchaSolveCode.SUCCESS) {
         throw new Error(`${provider.name} 识别失败: ${solveResult.message}`);
@@ -67,13 +67,6 @@ export function GeetestV4Slider(props: GeeTestV4CaptchaProps) {
       });
 
       collector.addCapture("marked", markedCanvas.toDataURL("image/png"));
-
-      // Add extra captures from solver (e.g., cropped image from Gemini)
-      if (solveResult.data.extraCaptures) {
-        for (const [name, base64] of Object.entries(solveResult.data.extraCaptures)) {
-          collector.addCapture(name, base64);
-        }
-      }
 
       // 4. Find Elements
       const elements = findGeeTestElements(container);

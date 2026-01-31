@@ -1,13 +1,18 @@
 import { useRef, useCallback, useMemo } from "react";
+import type { CaptchaCollector } from "../../../../utils/captcha/type/provider";
 
-export interface CaptchaCollector {
-  addCapture: (name: string, base64: string) => void;
-  setMetadata: (key: string, value: unknown) => void;
+// Re-export for convenience
+export type { CaptchaCollector };
+
+/**
+ * 完整的 Collector 接口，包含 React 组件需要的额外方法
+ */
+export interface FullCaptchaCollector extends CaptchaCollector {
   getArgs: () => { captures: Record<string, string>; metadata: Record<string, unknown> };
   reset: () => void;
 }
 
-export function useCaptchaCollector(): CaptchaCollector {
+export function useCaptchaCollector(): FullCaptchaCollector {
   const capturesRef = useRef<Record<string, string>>({});
   const metadataRef = useRef<Record<string, unknown>>({});
 

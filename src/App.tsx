@@ -17,7 +17,7 @@ function App() {
   } = useCaptchaQueue({
     useMock: true,
     taskTimeout: 2 * 60 * 1000,
-    maxConcurrent: 4,
+    maxConcurrent: 2,
   });
 
   const handleComplete = (containerId: string) => () => {

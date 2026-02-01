@@ -7,8 +7,8 @@ import { AutoRefreshProvider } from "./contexts/AutoRefreshContext";
 import { useCaptchaQueue } from "./hooks/useCaptchaQueue";
 import { useAutoRefresh } from "./hooks/useAutoRefresh";
 
-// 自动刷新间隔（毫秒）- 2分钟
-const AUTO_REFRESH_INTERVAL = 2 * 60 * 1000;
+// 自动刷新间隔（毫秒）- 1 小时
+const AUTO_REFRESH_INTERVAL = 1 * 60 * 60 * 1000;
 // 等待任务完成的最大时间（毫秒）- 5分钟
 const MAX_WAIT_TIME = 5 * 60 * 1000;
 

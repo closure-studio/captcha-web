@@ -1,4 +1,5 @@
 import { createModuleLogger } from "../../utils/logger";
+import { recordElapsed } from "../../utils/providerStats";
 import {
   captureScreenshot,
   logScreenshotPreview,
@@ -69,10 +70,16 @@ export class GeminiRecognizer implements IRecognizer {
     collector?: CaptchaCollector,
   ): Promise<RecognizeResult> {
     try {
+      let result: RecognizeResult;
       if (request.type === "slide") {
-        return await this.recognizeSlide(request.image, collector);
+        result = await this.recognizeSlide(request.image, collector);
+      } else {
+        result = await this.recognizeClick(request.image, collector);
       }
-      return await this.recognizeClick(request.image, collector);
+      if (result.elapsed != null) {
+        recordElapsed(this.name, result.elapsed);
+      }
+      return result;
     } catch (error) {
       logger.error("识别失败:", error);
       return {
@@ -132,6 +139,7 @@ export class GeminiRecognizer implements IRecognizer {
       captchaId: "",
       points: [{ x, y: 0 }],
       message: "识别成功",
+      elapsed: result.elapsed,
     };
   }
 
@@ -188,6 +196,7 @@ export class GeminiRecognizer implements IRecognizer {
       captchaId: "",
       points: compensatedPoints,
       message: "识别成功",
+      elapsed: result.elapsed,
     };
   }
 
@@ -271,15 +280,15 @@ export class GeminiRecognizer implements IRecognizer {
       ? base64Image
       : `data:image/png;base64,${base64Image}`;
 
-    console.log(
+    logger.log(
       `%c${label}`,
       "font-weight: bold; font-size: 14px; color: #00f;",
     );
-    console.log(
+    logger.log(
       `%c `,
       `background: url(${dataUrl}) no-repeat; background-size: contain; padding: ${height / 2}px ${width / 2}px;`,
     );
-    console.log(`尺寸: ${width} x ${height}`);
+    logger.log(`尺寸: ${width} x ${height}`);
   }
 
   private async getImageDimensions(

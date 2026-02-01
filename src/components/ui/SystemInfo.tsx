@@ -1,4 +1,14 @@
 import { useEffect, useState } from "react";
+import {
+  enableLogging,
+  disableLogging,
+  isLoggingEnabled,
+} from "../../utils/logger";
+import {
+  getProviderStats,
+  subscribe,
+  type ProviderStatsEntry,
+} from "../../utils/providerStats";
 
 declare const __APP_VERSION__: string;
 
@@ -40,6 +50,13 @@ interface SystemInfoData {
   dpr: number;
 }
 
+function formatTime(ms: number): string {
+  if (ms >= 1000) {
+    return `${(ms / 1000).toFixed(2)}s`;
+  }
+  return `${ms}ms`;
+}
+
 function formatMB(bytes: number): string {
   return (bytes / 1024 / 1024).toFixed(1);
 }
@@ -64,8 +81,26 @@ function getSystemInfo(): SystemInfoData {
   };
 }
 
+/**
+ * 阻止事件冒泡（防止 GeeTest float 模式误判为点击外部关闭）
+ */
+const stopPropagation = (e: React.SyntheticEvent) => e.stopPropagation();
+
 export function SystemInfo() {
   const [info, setInfo] = useState<SystemInfoData>(getSystemInfo);
+  const [loggingOn, setLoggingOn] = useState(isLoggingEnabled);
+  const [providerStats, setProviderStats] =
+    useState<ProviderStatsEntry[]>(getProviderStats);
+
+  const handleLoggingToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const checked = e.target.checked;
+    if (checked) {
+      enableLogging();
+    } else {
+      disableLogging();
+    }
+    setLoggingOn(checked);
+  };
 
   // 每秒更新动态信息（内存、网络状态）
   useEffect(() => {
@@ -73,6 +108,11 @@ export function SystemInfo() {
       setInfo(getSystemInfo());
     }, 1000);
     return () => clearInterval(interval);
+  }, []);
+
+  // 订阅 provider stats 更新
+  useEffect(() => {
+    return subscribe(() => setProviderStats(getProviderStats()));
   }, []);
 
   const items: string[] = [
@@ -91,14 +131,49 @@ export function SystemInfo() {
   ].filter((v): v is string => v !== null);
 
   return (
-    <div className="fixed top-0 left-0 right-0 bg-slate-800 text-slate-300 text-xs px-4 py-1.5 flex items-center gap-3 z-50 font-mono">
-      <span className="font-semibold text-white">v{info.version}</span>
-      {items.map((item, i) => (
-        <span key={i} className="flex items-center gap-3">
-          <span className="text-slate-600">|</span>
-          <span>{item}</span>
-        </span>
-      ))}
+    <div className="fixed top-0 left-0 right-0 bg-slate-800 text-slate-300 text-sm px-4 z-50 font-mono">
+      {/* 第一行：系统信息 */}
+      <div className="flex items-center gap-3 py-1.5 flex-wrap">
+        <span className="font-semibold text-white">v{info.version}</span>
+        {items.map((item, i) => (
+          <span key={i} className="flex items-center gap-3">
+            <span className="text-slate-600">|</span>
+            <span>{item}</span>
+          </span>
+        ))}
+        <span className="text-slate-600">|</span>
+        {/* 阻止冒泡防止 GeeTest float 模式关闭 */}
+        <label
+          className="flex items-center gap-1.5 cursor-pointer select-none"
+          onClick={stopPropagation}
+          onMouseDown={stopPropagation}
+          onPointerDown={stopPropagation}
+        >
+          <input
+            type="checkbox"
+            checked={loggingOn}
+            onChange={handleLoggingToggle}
+            className="w-3 h-3 rounded border-slate-500 bg-slate-700 text-blue-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+          />
+          <span className={loggingOn ? "text-green-400" : "text-slate-500"}>
+            Log
+          </span>
+        </label>
+      </div>
+      {/* 第二行：Provider Stats */}
+      <div className="flex items-center gap-3 py-1.5 border-t border-slate-700">
+        <span className="font-semibold text-white">Providers</span>
+        {providerStats.map((s) => (
+          <span key={s.provider} className="flex items-center gap-3">
+            <span className="text-slate-600">|</span>
+            <span className="text-blue-400">{s.provider}</span>
+            <span>{formatTime(s.avg)}</span>
+            <span className="text-slate-500">
+              ({formatTime(s.min)}-{formatTime(s.max)}, n={s.count})
+            </span>
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

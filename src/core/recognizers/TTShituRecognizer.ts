@@ -4,6 +4,7 @@ import {
   type TTShituOptions,
 } from "../../utils/captcha/ttshitu/client";
 import { createModuleLogger } from "../../utils/logger";
+import { recordElapsed } from "../../utils/providerStats";
 import {
   captureScreenshot,
   logScreenshotPreview,
@@ -32,10 +33,16 @@ export class TTShituRecognizer implements IRecognizer {
 
   async recognize(request: RecognizeRequest): Promise<RecognizeResult> {
     try {
+      let result: RecognizeResult;
       if (request.type === "slide") {
-        return await this.recognizeSlide(request.image);
+        result = await this.recognizeSlide(request.image);
+      } else {
+        result = await this.recognizeClick(request.image);
       }
-      return await this.recognizeClick(request.image);
+      if (result.elapsed != null) {
+        recordElapsed(this.name, result.elapsed);
+      }
+      return result;
     } catch (error) {
       logger.error("识别失败:", error);
       return {
@@ -48,7 +55,9 @@ export class TTShituRecognizer implements IRecognizer {
   }
 
   private async recognizeSlide(image: string): Promise<RecognizeResult> {
+    const startTime = Date.now();
     const result = await this.client.predict(image);
+    const elapsed = Date.now() - startTime;
     const x = parseInt(result.result, 10);
 
     if (isNaN(x)) {
@@ -57,6 +66,7 @@ export class TTShituRecognizer implements IRecognizer {
         captchaId: result.id,
         points: [],
         message: `识别结果无效: ${result.result}`,
+        elapsed,
       };
     }
 
@@ -65,11 +75,14 @@ export class TTShituRecognizer implements IRecognizer {
       captchaId: result.id,
       points: [{ x, y: 0 }],
       message: "识别成功",
+      elapsed,
     };
   }
 
   private async recognizeClick(image: string): Promise<RecognizeResult> {
+    const startTime = Date.now();
     const result = await this.client.predict(image, TTShituTypeId.CLICK_1_4);
+    const elapsed = Date.now() - startTime;
     const points = this.parseClickPoints(result.result);
 
     if (points.length === 0) {
@@ -78,6 +91,7 @@ export class TTShituRecognizer implements IRecognizer {
         captchaId: result.id,
         points: [],
         message: `识别结果无效: ${result.result}`,
+        elapsed,
       };
     }
 
@@ -86,6 +100,7 @@ export class TTShituRecognizer implements IRecognizer {
       captchaId: result.id,
       points,
       message: "识别成功",
+      elapsed,
     };
   }
 

@@ -99,6 +99,12 @@ export function useCaptchaQueue(
         return;
       }
 
+      // 如果已经标记为完成，直接返回
+      if (task.completed) {
+        logger.warn(`任务已完成: ${containerId}`);
+        return;
+      }
+
       // 计算耗时
       const startTime = taskStartTimeRef.current.get(containerId);
       const duration = startTime ? Date.now() - startTime : undefined;
@@ -107,8 +113,12 @@ export function useCaptchaQueue(
       clearTaskTimeout(containerId);
       taskStartTimeRef.current.delete(containerId);
 
-      // 从列表中移除
-      setTasks((prev) => prev.filter((t) => t.containerId !== containerId));
+      // 标记为已完成（不从数组中移除，保持位置）
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.containerId === containerId ? { ...t, completed: true } : t
+        )
+      );
 
       // 上报结果到服务器
       try {
@@ -156,8 +166,11 @@ export function useCaptchaQueue(
 
   // 获取新任务
   const fetchTasks = useCallback(async () => {
+    // 计算活跃任务数（不包括已完成的）
+    const activeTaskCount = tasksRef.current.filter((t) => !t.completed).length;
+
     // 如果已达到最大并发数，不再获取新任务
-    if (tasksRef.current.length >= opts.maxConcurrent) {
+    if (activeTaskCount >= opts.maxConcurrent) {
       return;
     }
 
@@ -172,14 +185,24 @@ export function useCaptchaQueue(
         if (newTasks.length > 0) {
           setTasks((prev) => {
             // 过滤掉已存在的任务
-            const existingIds = new Set(prev.map((t) => t.taskId));
+            const existingIds = new Set(prev.filter((t) => !t.completed).map((t) => t.taskId));
             const uniqueNewTasks = newTasks.filter((t) => !existingIds.has(t.taskId));
 
             // 限制总数不超过maxConcurrent
-            const availableSlots = opts.maxConcurrent - prev.length;
-            const tasksToAdd = uniqueNewTasks.slice(0, availableSlots);
+            const activeCount = prev.filter((t) => !t.completed).length;
+            const availableSlots = opts.maxConcurrent - activeCount;
+            const tasksToAdd = [...uniqueNewTasks.slice(0, availableSlots)];
 
-            return [...prev, ...tasksToAdd];
+            // 用新任务就地替换已完成的槽位，保持其他任务位置不变
+            const result = prev.map((t) => {
+              if (t.completed && tasksToAdd.length > 0) {
+                return tasksToAdd.shift()!;
+              }
+              return t;
+            });
+
+            // 剩余的新任务追加到末尾
+            return [...result, ...tasksToAdd];
           });
         }
       } else {

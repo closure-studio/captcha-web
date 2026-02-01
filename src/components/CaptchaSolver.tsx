@@ -1,4 +1,4 @@
-import { type JSX, useMemo } from "react";
+import { type JSX, useMemo, memo, useCallback } from "react";
 import { captchaConfig } from "../core/config/captcha.config";
 import { CaptchaType } from "../core/recognizers";
 import { GeminiRecognizer } from "../core/recognizers/GeminiRecognizer";
@@ -9,15 +9,17 @@ import { GeetestV4Captcha } from "./GeetestV4Captcha";
 
 interface CaptchaSolverProps {
   captchaInfo: CaptchaInfo;
-  handleComplete?: () => void;
+  onComplete?: (containerId: string) => void;
 }
 
 /**
  * 统一验证码入口组件
  * 根据 captchaInfo 自动选择识别器和策略
  */
-export const CaptchaSolver = (props: CaptchaSolverProps): JSX.Element => {
-  const { captchaInfo, handleComplete } = props;
+export const CaptchaSolver = memo(function CaptchaSolver(
+  props: CaptchaSolverProps
+): JSX.Element {
+  const { captchaInfo, onComplete } = props;
 
   const strategy = useMemo(() => {
     const { slide, click } = captchaConfig;
@@ -48,7 +50,11 @@ export const CaptchaSolver = (props: CaptchaSolverProps): JSX.Element => {
       stepDelay: { min: 15, max: 25 },
       debug: true,
     });
-  }, [captchaInfo]);
+  }, [captchaInfo.type]);
+
+  const handleComplete = useCallback(() => {
+    onComplete?.(captchaInfo.containerId);
+  }, [onComplete, captchaInfo.containerId]);
 
   const renderCaptchaComponent = () => {
     switch (captchaInfo.provider) {
@@ -73,6 +79,6 @@ export const CaptchaSolver = (props: CaptchaSolverProps): JSX.Element => {
       {renderCaptchaComponent()}
     </div>
   );
-};
+});
 
 export default CaptchaSolver;

@@ -55,6 +55,8 @@ export interface RecognizeResult {
   captchaId: string;
   points: Point[];
   message: string;
+  /** API 请求耗时（毫秒） */
+  elapsed?: number;
 }
 
 /**

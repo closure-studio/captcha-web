@@ -1,4 +1,5 @@
 import { createModuleLogger } from "../../utils/logger";
+import { recordElapsed } from "../../utils/providerStats";
 import {
   captureScreenshot,
   logScreenshotPreview,
@@ -31,6 +32,10 @@ export class AegirRecognizer implements IRecognizer {
       const response = await this.client.selectCaptcha(request.image);
       const points = this.client.parsePoints(response.data.points);
 
+      if (response.time != null) {
+        recordElapsed(this.name, response.time);
+      }
+
       if (points.length === 0) {
         return {
           success: false,
@@ -45,6 +50,7 @@ export class AegirRecognizer implements IRecognizer {
         captchaId: response.data.captcha_id,
         points,
         message: response.message,
+        elapsed: response.time,
       };
     } catch (error) {
       logger.error("识别失败:", error);

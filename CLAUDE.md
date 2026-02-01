@@ -126,7 +126,7 @@ const {
   stopPolling,
   isPolling,
 } = useCaptchaQueue({
-  maxConcurrent: 2,
+  maxConcurrent: 4,
   pollInterval: 10000,
   taskTimeout: 2 * 60 * 1000,
   useMock: true,

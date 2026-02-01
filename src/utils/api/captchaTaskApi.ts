@@ -1,3 +1,4 @@
+import axios from "axios";
 import type {
   CaptchaApiConfig,
   CaptchaTask,
@@ -70,28 +71,20 @@ class CaptchaTaskApi {
     }
 
     try {
-      const response = await fetch(`${this.config.baseUrl}/tasks`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await axios.get<{ tasks: CaptchaTask[] }>(
+        `${this.config.baseUrl}/tasks`,
+      );
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
       return {
         success: true,
-        data: data.tasks || [],
+        data: response.data.tasks || [],
       };
     } catch (error) {
       logger.error("获取任务失败:", error);
       return {
         success: false,
         data: [],
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: axios.isAxiosError(error) ? error.message : "Unknown error",
       };
     }
   }
@@ -114,27 +107,17 @@ class CaptchaTaskApi {
     }
 
     try {
-      const response = await fetch(
+      const response = await axios.post<SubmitResultResponse>(
         `${this.config.baseUrl}/tasks/${request.taskId}/result`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(request),
-        },
+        request,
       );
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      return await response.json();
+      return response.data;
     } catch (error) {
       logger.error("提交结果失败:", error);
       return {
         success: false,
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: axios.isAxiosError(error) ? error.message : "Unknown error",
       };
     }
   }
@@ -144,6 +127,7 @@ class CaptchaTaskApi {
     _request: SubmitResultRequest,
   ): Promise<SubmitResultResponse> {
     await delay(200); // 模拟网络延迟
+    logger.info("Mock 提交结果:", _request);
     return {
       success: true,
       message: "Mock result submitted successfully",

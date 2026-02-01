@@ -11,6 +11,7 @@ const CAPTCHA_SERVER_HOST = import.meta.env.VITE_CAPTCHA_SERVER_HOST as string;
  */
 export interface GeminiSlideResponse {
   success: boolean;
+  elapsed?: number;
   data: Array<{ x: number; y: number }>;
 }
 

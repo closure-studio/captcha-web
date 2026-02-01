@@ -44,12 +44,18 @@ export class ClickStrategy implements ISolveStrategy {
     );
 
     if (!recognizeResult.success) {
+      // 清理 canvas 资源
+      canvas.width = 0;
+      canvas.height = 0;
       throw new Error(
         `${this.recognizer.name} 识别失败: ${recognizeResult.message}`,
       );
     }
 
     if (recognizeResult.points.length === 0) {
+      // 清理 canvas 资源
+      canvas.width = 0;
+      canvas.height = 0;
       throw new Error(`${this.recognizer.name} 识别结果无效: 无坐标点`);
     }
 
@@ -63,6 +69,14 @@ export class ClickStrategy implements ISolveStrategy {
     });
     collector.addCapture("marked", markedCanvas.toDataURL("image/png"));
 
+    // 保存 canvas 尺寸用于后续计算，然后清理
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+    canvas.width = 0;
+    canvas.height = 0;
+    markedCanvas.width = 0;
+    markedCanvas.height = 0;
+
     // 4. Find Elements
     const elements = findGeeTestElements(container);
 
@@ -74,8 +88,8 @@ export class ClickStrategy implements ISolveStrategy {
     const bypassContext: GeeTestClickBypassContext = {
       container,
       captchaWindow: elements.captchaWindow,
-      canvasWidth: canvas.width,
-      canvasHeight: canvas.height,
+      canvasWidth: canvasWidth,
+      canvasHeight: canvasHeight,
     };
 
     logger.log(`${this.recognizer.name}: 开始执行点选 bypass...`);

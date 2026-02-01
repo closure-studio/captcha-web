@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useAutoRefresh } from "../../hooks/useAutoRefresh";
 import {
   enableLogging,
   disableLogging,
@@ -61,6 +62,21 @@ function formatMB(bytes: number): string {
   return (bytes / 1024 / 1024).toFixed(1);
 }
 
+function formatCountdown(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}h${minutes.toString().padStart(2, "0")}m${seconds.toString().padStart(2, "0")}s`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m${seconds.toString().padStart(2, "0")}s`;
+  }
+  return `${seconds}s`;
+}
+
 function getSystemInfo(): SystemInfoData {
   const perf = performance as PerformanceWithMemory;
   const navMem = navigator as NavigatorWithDeviceMemory;
@@ -87,6 +103,7 @@ function getSystemInfo(): SystemInfoData {
 const stopPropagation = (e: React.SyntheticEvent) => e.stopPropagation();
 
 export function SystemInfo() {
+  const { refreshCountdown, isPreparingRefresh } = useAutoRefresh();
   const [info, setInfo] = useState<SystemInfoData>(getSystemInfo);
   const [loggingOn, setLoggingOn] = useState(isLoggingEnabled);
   const [providerStats, setProviderStats] =
@@ -159,6 +176,11 @@ export function SystemInfo() {
             Log
           </span>
         </label>
+        {/* 刷新倒计时 */}
+        <span className="text-slate-600">|</span>
+        <span className={isPreparingRefresh ? "text-yellow-400" : "text-slate-400"}>
+          {isPreparingRefresh ? "等待刷新..." : `刷新 ${formatCountdown(refreshCountdown)}`}
+        </span>
       </div>
       {/* 第二行：Provider Stats */}
       <div className="flex items-center gap-3 py-1.5 border-t border-slate-700">

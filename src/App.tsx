@@ -1,9 +1,32 @@
 import "./App.css";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { CaptchaSolver } from "./components/CaptchaSolver";
 import { SystemInfo } from "./components/ui/SystemInfo";
 import { TaskControls } from "./components/ui/TaskControls";
+import { AutoRefreshProvider } from "./contexts/AutoRefreshContext";
 import { useCaptchaQueue } from "./hooks/useCaptchaQueue";
+import { useAutoRefresh } from "./hooks/useAutoRefresh";
+
+// 自动刷新间隔（毫秒）- 2分钟
+const AUTO_REFRESH_INTERVAL = 2 * 60 * 1000;
+// 等待任务完成的最大时间（毫秒）- 5分钟
+const MAX_WAIT_TIME = 5 * 60 * 1000;
+
+interface RefreshBannerProps {
+  activeTaskCount: number;
+}
+
+function RefreshBanner({ activeTaskCount }: RefreshBannerProps) {
+  const { isPreparingRefresh } = useAutoRefresh();
+
+  if (!isPreparingRefresh) return null;
+
+  return (
+    <div className="mb-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg text-yellow-800 text-sm">
+      正在等待 {activeTaskCount} 个任务完成后刷新页面...
+    </div>
+  );
+}
 
 function App() {
   const {
@@ -15,11 +38,24 @@ function App() {
     startPolling,
     stopPolling,
     isPolling,
+    activeTaskCount,
   } = useCaptchaQueue({
     useMock: true,
     taskTimeout: 2 * 60 * 1000,
     maxConcurrent: 4,
   });
+
+  // 用 ref 保证 getActiveTaskCount 始终拿到最新值
+  const activeTaskCountRef = useRef(activeTaskCount);
+  const stopPollingRef = useRef(stopPolling);
+
+  useEffect(() => {
+    activeTaskCountRef.current = activeTaskCount;
+  }, [activeTaskCount]);
+
+  useEffect(() => {
+    stopPollingRef.current = stopPolling;
+  }, [stopPolling]);
 
   const handleComplete = useCallback(
     (containerId: string) => {
@@ -29,32 +65,40 @@ function App() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4">
-      <SystemInfo />
-      <TaskControls
-        isLoading={isLoading}
-        isPolling={isPolling}
-        taskCount={tasks.filter((t) => !t.completed).length}
-        error={error}
-        onFetchTasks={fetchTasks}
-        onStartPolling={startPolling}
-        onStopPolling={stopPolling}
-      />
+    <AutoRefreshProvider
+      refreshInterval={AUTO_REFRESH_INTERVAL}
+      maxWaitTime={MAX_WAIT_TIME}
+      getActiveTaskCount={() => activeTaskCountRef.current}
+      onStopPolling={() => stopPollingRef.current()}
+    >
+      <div className="min-h-screen bg-slate-50 p-4">
+        <SystemInfo />
+        <RefreshBanner activeTaskCount={activeTaskCount} />
+        <TaskControls
+          isLoading={isLoading}
+          isPolling={isPolling}
+          taskCount={activeTaskCount}
+          error={error}
+          onFetchTasks={fetchTasks}
+          onStartPolling={startPolling}
+          onStopPolling={stopPolling}
+        />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pt-2">
-        {tasks.map((task) =>
-          task.completed ? (
-            <div key={task.containerId} />
-          ) : (
-            <CaptchaSolver
-              key={task.containerId}
-              captchaInfo={task}
-              onComplete={handleComplete}
-            />
-          ),
-        )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pt-2">
+          {tasks.map((task) =>
+            task.completed ? (
+              <div key={task.containerId} />
+            ) : (
+              <CaptchaSolver
+                key={task.containerId}
+                captchaInfo={task}
+                onComplete={handleComplete}
+              />
+            ),
+          )}
+        </div>
       </div>
-    </div>
+    </AutoRefreshProvider>
   );
 }
 

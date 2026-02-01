@@ -224,6 +224,13 @@ export class GeminiRecognizer implements IRecognizer {
   ): Promise<string> {
     return new Promise((resolve, reject) => {
       const img = new Image();
+
+      const cleanup = () => {
+        img.onload = null;
+        img.onerror = null;
+        img.src = "";
+      };
+
       img.onload = () => {
         const { topCrop, bottomCrop } = config;
         const originalWidth = img.width;
@@ -231,6 +238,7 @@ export class GeminiRecognizer implements IRecognizer {
         const croppedHeight = originalHeight - topCrop - bottomCrop;
 
         if (croppedHeight <= 0) {
+          cleanup();
           reject(new Error("裁剪配置错误：裁剪后高度为负数或零"));
           return;
         }
@@ -241,6 +249,7 @@ export class GeminiRecognizer implements IRecognizer {
 
         const ctx = canvas.getContext("2d");
         if (!ctx) {
+          cleanup();
           reject(new Error("无法获取 canvas 2d context"));
           return;
         }
@@ -257,10 +266,18 @@ export class GeminiRecognizer implements IRecognizer {
           croppedHeight,
         );
 
-        resolve(canvas.toDataURL("image/png"));
+        const result = canvas.toDataURL("image/png");
+        // 清理 canvas
+        canvas.width = 0;
+        canvas.height = 0;
+        cleanup();
+        resolve(result);
       };
 
-      img.onerror = () => reject(new Error("图片加载失败"));
+      img.onerror = () => {
+        cleanup();
+        reject(new Error("图片加载失败"));
+      };
 
       if (base64Image.startsWith("data:")) {
         img.src = base64Image;
@@ -276,19 +293,44 @@ export class GeminiRecognizer implements IRecognizer {
     width: number,
     height: number,
   ): void {
-    const dataUrl = base64Image.startsWith("data:")
-      ? base64Image
-      : `data:image/png;base64,${base64Image}`;
+    // 创建缩略图以减少日志中的内存占用
+    const img = new Image();
+    img.onload = () => {
+      const maxSize = 200;
+      const scale = Math.min(maxSize / width, maxSize / height, 1);
+      const thumbCanvas = document.createElement("canvas");
+      thumbCanvas.width = Math.floor(width * scale);
+      thumbCanvas.height = Math.floor(height * scale);
+      const ctx = thumbCanvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, thumbCanvas.width, thumbCanvas.height);
+        const thumbUrl = thumbCanvas.toDataURL("image/jpeg", 0.6);
+        // 清理
+        thumbCanvas.width = 0;
+        thumbCanvas.height = 0;
+        img.src = "";
 
-    logger.log(
-      `%c${label}`,
-      "font-weight: bold; font-size: 14px; color: #00f;",
-    );
-    logger.log(
-      `%c `,
-      `background: url(${dataUrl}) no-repeat; background-size: contain; padding: ${height / 2}px ${width / 2}px;`,
-    );
-    logger.log(`尺寸: ${width} x ${height}`);
+        logger.log(
+          `%c${label}`,
+          "font-weight: bold; font-size: 14px; color: #00f;",
+        );
+        logger.log(
+          `%c `,
+          `background: url(${thumbUrl}) no-repeat; background-size: contain; padding: ${thumbCanvas.height / 2 || height / 4}px ${thumbCanvas.width / 2 || width / 4}px;`,
+        );
+        logger.log(`尺寸: ${width} x ${height}`);
+      }
+    };
+    img.onerror = () => {
+      img.src = "";
+      logger.log(`${label}: 尺寸 ${width} x ${height} (预览加载失败)`);
+    };
+
+    if (base64Image.startsWith("data:")) {
+      img.src = base64Image;
+    } else {
+      img.src = `data:image/png;base64,${base64Image}`;
+    }
   }
 
   private async getImageDimensions(
@@ -296,8 +338,22 @@ export class GeminiRecognizer implements IRecognizer {
   ): Promise<{ width: number; height: number }> {
     return new Promise((resolve, reject) => {
       const img = new Image();
-      img.onload = () => resolve({ width: img.width, height: img.height });
-      img.onerror = () => reject(new Error("无法获取图片尺寸"));
+
+      const cleanup = () => {
+        img.onload = null;
+        img.onerror = null;
+        img.src = "";
+      };
+
+      img.onload = () => {
+        const result = { width: img.width, height: img.height };
+        cleanup();
+        resolve(result);
+      };
+      img.onerror = () => {
+        cleanup();
+        reject(new Error("无法获取图片尺寸"));
+      };
       if (base64Image.startsWith("data:")) {
         img.src = base64Image;
       } else {

@@ -26,14 +26,28 @@ const statsMap = new Map<string, StatsRecord>();
 type Listener = () => void;
 const listeners = new Set<Listener>();
 
+// 最大记录数，超过后重置以防止内存无限增长
+const MAX_COUNT_PER_PROVIDER = 10000;
+
 export function recordElapsed(provider: string, elapsed: number): void {
   const existing = statsMap.get(provider);
   if (existing) {
-    existing.totalElapsed += elapsed;
-    existing.count += 1;
-    existing.min = Math.min(existing.min, elapsed);
-    existing.max = Math.max(existing.max, elapsed);
-    existing.last = elapsed;
+    // 如果计数超过上限，重置统计
+    if (existing.count >= MAX_COUNT_PER_PROVIDER) {
+      statsMap.set(provider, {
+        totalElapsed: elapsed,
+        count: 1,
+        min: elapsed,
+        max: elapsed,
+        last: elapsed,
+      });
+    } else {
+      existing.totalElapsed += elapsed;
+      existing.count += 1;
+      existing.min = Math.min(existing.min, elapsed);
+      existing.max = Math.max(existing.max, elapsed);
+      existing.last = elapsed;
+    }
   } else {
     statsMap.set(provider, {
       totalElapsed: elapsed,
@@ -56,6 +70,11 @@ export function getProviderStats(): ProviderStatsEntry[] {
     max: record.max,
     last: record.last,
   }));
+}
+
+export function resetProviderStats(): void {
+  statsMap.clear();
+  listeners.forEach((fn) => fn());
 }
 
 export function subscribe(listener: Listener): () => void {

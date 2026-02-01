@@ -159,6 +159,13 @@ async function createCanvasFromDataUrl(
 ): Promise<HTMLCanvasElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
+
+    const cleanup = () => {
+      img.onload = null;
+      img.onerror = null;
+      img.src = "";
+    };
+
     img.onload = () => {
       const canvas = document.createElement("canvas");
       canvas.width = img.width;
@@ -166,18 +173,25 @@ async function createCanvasFromDataUrl(
       const ctx = canvas.getContext("2d");
       if (ctx) {
         ctx.drawImage(img, 0, 0);
+        cleanup();
         resolve(canvas);
       } else {
+        cleanup();
         reject(new Error("无法获取 Canvas 2D 上下文"));
       }
     };
-    img.onerror = () => reject(new Error("加载图片失败"));
+    img.onerror = () => {
+      cleanup();
+      reject(new Error("加载图片失败"));
+    };
     img.src = dataUrl;
   });
 }
 
 /**
  * 在控制台输出截图预览（用于调试）
+ * 注意：此方法会在 console 中保留 data URL 引用，可能影响内存
+ * 建议仅在调试时使用，生产环境会自动禁用日志
  * @param result - 截图结果
  * @param maxWidth - 最大显示宽度，默认 400
  * @param maxHeight - 最大显示高度，默认 300
@@ -187,9 +201,23 @@ export function logScreenshotPreview(
   maxWidth: number = 400,
   maxHeight: number = 300,
 ): void {
-  const { canvas, dataUrl } = result;
+  const { canvas } = result;
   const displayWidth = Math.min(canvas.width / 2, maxWidth / 2);
   const displayHeight = Math.min(canvas.height / 2, maxHeight / 2);
+
+  // 使用较小的缩略图 URL 而非完整尺寸
+  const thumbCanvas = document.createElement("canvas");
+  const scale = Math.min(maxWidth / canvas.width, maxHeight / canvas.height, 1);
+  thumbCanvas.width = Math.floor(canvas.width * scale);
+  thumbCanvas.height = Math.floor(canvas.height * scale);
+  const ctx = thumbCanvas.getContext("2d");
+  if (ctx) {
+    ctx.drawImage(canvas, 0, 0, thumbCanvas.width, thumbCanvas.height);
+  }
+  const thumbUrl = thumbCanvas.toDataURL("image/jpeg", 0.6);
+  // 清理缩略图 canvas
+  thumbCanvas.width = 0;
+  thumbCanvas.height = 0;
 
   logger.log("截图预览:");
   logger.log(
@@ -197,7 +225,7 @@ export function logScreenshotPreview(
     `
     font-size: 1px;
     padding: ${displayHeight}px ${displayWidth}px;
-    background: url(${dataUrl}) no-repeat;
+    background: url(${thumbUrl}) no-repeat;
     background-size: contain;
   `,
   );

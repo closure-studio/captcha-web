@@ -42,6 +42,8 @@ export interface UseCaptchaQueueReturn {
   stopPolling: () => void;
   // 是否正在轮询
   isPolling: boolean;
+  // 获取活跃任务数（未完成的）
+  activeTaskCount: number;
 }
 
 const DEFAULT_OPTIONS: Required<UseCaptchaQueueOptions> = {
@@ -51,6 +53,9 @@ const DEFAULT_OPTIONS: Required<UseCaptchaQueueOptions> = {
   maxConcurrent: 4,
   useMock: true, // 开发阶段默认使用mock
 };
+
+// 已完成任务保留时间（毫秒），超过后清理以释放内存
+const COMPLETED_TASK_RETENTION_MS = 30 * 1000; // 30秒
 
 export function useCaptchaQueue(
   options: UseCaptchaQueueOptions = {}
@@ -66,6 +71,8 @@ export function useCaptchaQueue(
   const pollTimerRef = useRef<number | null>(null);
   const timeoutMapRef = useRef(new Map<string, number>());
   const taskStartTimeRef = useRef(new Map<string, number>());
+  // 记录任务完成时间，用于清理
+  const taskCompletedTimeRef = useRef(new Map<string, number>());
 
   // 使用 ref 保存 tasks 以避免 stale closure
   const tasksRef = useRef(tasks);
@@ -113,7 +120,9 @@ export function useCaptchaQueue(
       clearTaskTimeout(containerId);
       taskStartTimeRef.current.delete(containerId);
 
-      // 标记为已完成（不从数组中移除，保持位置）
+      // 标记为已完成并记录完成时间
+      const completedTime = Date.now();
+      taskCompletedTimeRef.current.set(containerId, completedTime);
       setTasks((prev) =>
         prev.map((t) =>
           t.containerId === containerId ? { ...t, completed: true } : t
@@ -271,6 +280,33 @@ export function useCaptchaQueue(
     });
   }, [tasks, setTaskTimeout, clearTaskTimeout]);
 
+  // 定期清理已完成的任务以释放内存
+  useEffect(() => {
+    const cleanupInterval = window.setInterval(() => {
+      const now = Date.now();
+      const completedTimeMap = taskCompletedTimeRef.current;
+      const tasksToRemove: string[] = [];
+
+      completedTimeMap.forEach((completedTime, containerId) => {
+        if (now - completedTime > COMPLETED_TASK_RETENTION_MS) {
+          tasksToRemove.push(containerId);
+        }
+      });
+
+      if (tasksToRemove.length > 0) {
+        // 从任务列表中移除已过期的已完成任务
+        setTasks((prev) => prev.filter((t) => !tasksToRemove.includes(t.containerId)));
+        // 清理完成时间记录
+        tasksToRemove.forEach((id) => completedTimeMap.delete(id));
+        logger.info(`清理了 ${tasksToRemove.length} 个已完成的任务`);
+      }
+    }, 10000); // 每10秒检查一次
+
+    return () => {
+      clearInterval(cleanupInterval);
+    };
+  }, []);
+
   // 自动获取（如果启用）
   useEffect(() => {
     if (opts.autoFetch) {
@@ -285,12 +321,14 @@ export function useCaptchaQueue(
   useEffect(() => {
     const currentTimeoutMap = timeoutMapRef.current;
     const currentStartTimeMap = taskStartTimeRef.current;
+    const currentCompletedTimeMap = taskCompletedTimeRef.current;
 
     return () => {
       // 清理所有定时器
       currentTimeoutMap.forEach((timeout) => clearTimeout(timeout));
       currentTimeoutMap.clear();
       currentStartTimeMap.clear();
+      currentCompletedTimeMap.clear();
       if (pollTimerRef.current) {
         clearInterval(pollTimerRef.current);
       }
@@ -307,5 +345,6 @@ export function useCaptchaQueue(
     startPolling,
     stopPolling,
     isPolling,
+    activeTaskCount: tasks.filter((t) => !t.completed).length,
   };
 }

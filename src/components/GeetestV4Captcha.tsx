@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GeeTest4Config, GeeTest4Error, GeeTest4Instance } from "../types/geetest4";
 import type { CaptchaInfo } from "../types/type";
-import { loadGeeTestV4Script, autoClickCaptchaButton, validateGeeTest } from "../adapters/geetest";
+import { loadGeeTestV4Script, autoClickCaptchaButton } from "../adapters/geetest";
 import type { ISolveStrategy } from "../core/strategies";
 import type { RecognizeResult, CaptchaCollector } from "../core/recognizers";
 import { captchaConfig } from "../core/config/captcha.config";
@@ -18,7 +18,7 @@ const logger = createModuleLogger("GeetestV4Captcha");
 
 // ============ Types ============
 
-export type CaptchaStatus = "idle" | "solving" | "validating" | "success" | "error" | "retrying";
+export type CaptchaStatus = "idle" | "solving" | "success" | "error" | "retrying";
 
 export interface GeetestV4CaptchaProps {
   captchaInfo: CaptchaInfo;
@@ -145,27 +145,9 @@ export function GeetestV4Captcha(props: GeetestV4CaptchaProps) {
       containerId: captchaInfo.containerId,
     });
 
-    setStatus("validating");
-    setStatusMessage("正在验证...");
-
-    try {
-      const response = await validateGeeTest(result);
-      logger.log("GeeTest v4 服务器验证结果:", response);
-
-      if (response.result === "success") {
-        setStatus("success");
-        setStatusMessage(response.msg || "验证成功");
-        onComplete?.();
-      } else {
-        setStatus("error");
-        setStatusMessage(response.msg || "验证失败");
-      }
-    } catch (error) {
-      logger.error("GeeTest v4 服务器验证失败:", error);
-      setStatus("error");
-      setStatusMessage(getErrorMessage(error, "服务器验证失败"));
-      onComplete?.();
-    }
+    setStatus("success");
+    setStatusMessage("验证成功");
+    onComplete?.();
   }, [captchaInfo, collector, onComplete, strategy.type]);
 
   // Handle validation failure with retry logic
@@ -247,7 +229,19 @@ export function GeetestV4Captcha(props: GeetestV4CaptchaProps) {
     setStatusMessage("");
   }, []);
 
-  // Initialize captcha
+  // 使用 ref 保存回调，避免回调变化导致验证码重新初始化
+  const handleReadyRef = useRef(handleReady);
+  const handleSuccessRef = useRef(handleSuccess);
+  const handleFailRef = useRef(handleFail);
+  const handleErrorRef = useRef(handleError);
+  const handleCloseRef = useRef(handleClose);
+  handleReadyRef.current = handleReady;
+  handleSuccessRef.current = handleSuccess;
+  handleFailRef.current = handleFail;
+  handleErrorRef.current = handleError;
+  handleCloseRef.current = handleClose;
+
+  // Initialize captcha - 只在 geetestId/riskType 变化时重新初始化
   useEffect(() => {
     let isMounted = true;
     const currentRefs = refs.current;
@@ -270,7 +264,7 @@ export function GeetestV4Captcha(props: GeetestV4CaptchaProps) {
           riskType: captchaInfo.riskType,
           product: "float",
           language: "zh-cn",
-          onError: handleError,
+          onError: (err: GeeTest4Error) => handleErrorRef.current(err),
         };
 
         window.initGeetest4(config, (captcha) => {
@@ -282,11 +276,11 @@ export function GeetestV4Captcha(props: GeetestV4CaptchaProps) {
           currentRefs.captcha = captcha;
 
           captcha
-            .onReady(handleReady)
-            .onSuccess(handleSuccess)
-            .onFail(handleFail)
-            .onError(handleError)
-            .onClose(handleClose);
+            .onReady(() => handleReadyRef.current())
+            .onSuccess(() => handleSuccessRef.current())
+            .onFail((err: GeeTest4Error) => handleFailRef.current(err))
+            .onError((err: GeeTest4Error) => handleErrorRef.current(err))
+            .onClose(() => handleCloseRef.current());
 
           captcha.appendTo(`#${innerContainerId.current}`);
         });
@@ -308,14 +302,8 @@ export function GeetestV4Captcha(props: GeetestV4CaptchaProps) {
         currentRefs.captcha = null;
       }
     };
-  }, [
-    captchaInfo,
-    handleSuccess,
-    handleFail,
-    handleError,
-    handleReady,
-    handleClose,
-  ]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [captchaInfo.geetestId, captchaInfo.riskType]);
 
   const containerClassName = useMemo(
     () =>

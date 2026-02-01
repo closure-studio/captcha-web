@@ -1,0 +1,38 @@
+name: Bump Version
+
+on:
+  pull_request:
+    branches: [master]
+    types: [closed]
+
+jobs:
+  bump:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+
+      - name: Bump version
+        run: |
+          CURRENT=$(node -p "require('./package.json').version")
+          NEXT=$((CURRENT + 1))
+          # 使用 node 原地更新 package.json，保留格式
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf-8'));
+            pkg.version = '${NEXT}';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+          echo "Bumped version: $CURRENT -> $NEXT"
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json
+          git commit -m "chore: bump version to $(node -p "require('./package.json').version")"
+          git push

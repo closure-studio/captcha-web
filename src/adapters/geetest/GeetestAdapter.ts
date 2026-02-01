@@ -1,52 +1,8 @@
 import { createModuleLogger } from "../../utils/logger";
-import axios from "axios";
 
 const logger = createModuleLogger("GeeTest Adapter");
 
-// API 基础 URL
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
-
-const GeeTestAPIPaths = {
-  V4: {
-    register: "/api/geetest/v4/register",
-    validate: "/api/geetest/v4/validate",
-  },
-};
-
 // ============ Types ============
-
-export interface GeeTestRegisterData {
-  lot_number: string;
-  captcha_type: string;
-  slice: string;
-  bg: string;
-  ypos: number;
-  arrow: string;
-  js: string;
-  css: string;
-  static_path: string;
-  gct_path: string;
-  show_voice: boolean;
-  feedback: string;
-}
-
-export interface GeeTestRegisterResponse {
-  status: string;
-  data: GeeTestRegisterData;
-}
-
-export interface GeeTestValidateResult {
-  lot_number: string;
-  captcha_output: string;
-  pass_token: string;
-  gen_time: string;
-}
-
-export interface GeeTestValidateResponse {
-  result: string;
-  msg: string;
-}
 
 export interface GeeTestElements {
   holder: HTMLElement | null;
@@ -59,40 +15,33 @@ export interface GeeTestElements {
   geeTestBox: HTMLElement | null;
 }
 
-// ============ Server API ============
-
-/**
- * 获取 GeeTest v4 注册数据
- */
-export async function getGeeTestRegister(): Promise<GeeTestRegisterResponse> {
-  const response = await axios.get<GeeTestRegisterResponse>(
-    `${API_BASE_URL}${GeeTestAPIPaths.V4.register}`,
-  );
-  return response.data;
-}
-
-/**
- * 验证 GeeTest captcha
- */
-export async function validateGeeTest(
-  result: GeeTestValidateResult,
-): Promise<GeeTestValidateResponse> {
-  const response = await axios.post<GeeTestValidateResponse>(
-    `${API_BASE_URL}${GeeTestAPIPaths.V4.validate}`,
-    result,
-    {
-      headers: {
-        "Content-Type": "application/json",
-      },
-    },
-  );
-  return response.data;
-}
-
 // ============ DOM Operations ============
 
 /**
+ * 判断一个元素是否是 geetest_box（而非 wrapper）
+ */
+function isGeeTestBox(el: HTMLElement): boolean {
+  const classList = el.className.split(" ");
+  const hasGeeTestBox = classList.some(
+    (cls) =>
+      cls === "geetest_box" ||
+      (cls.startsWith("geetest_box_") &&
+        !cls.includes("wrap") &&
+        !cls.includes("Show")),
+  );
+  const isNotWrapper = !classList.some(
+    (cls) =>
+      cls.includes("geetest_box_wrap") ||
+      cls.includes("geetest_captcha") ||
+      cls.includes("geetest_boxShow"),
+  );
+  return hasGeeTestBox && isNotWrapper;
+}
+
+/**
  * 在容器内查找 GeeTest 元素
+ * 注意：GeeTest SDK 可能会将 geetest_box 挂载到 body 而非 container 内
+ * 我们需要通过 holder 中的某些标识来关联正确的 geetest_box
  */
 export function findGeeTestElements(container: HTMLElement): GeeTestElements {
   const holder = container.querySelector<HTMLElement>(
@@ -103,40 +52,51 @@ export function findGeeTestElements(container: HTMLElement): GeeTestElements {
     'div[class*="geetest_box_wrap"]',
   );
 
-  let geeTestBox = document.querySelector<HTMLElement>(
+  // 首先尝试在 container 内部查找 geetest_box
+  let geeTestBox = container.querySelector<HTMLElement>(
     'div.geetest_box:not([class*="geetest_box_wrap"]):not([class*="geetest_captcha"])',
   );
 
   if (!geeTestBox) {
-    const allElements = document.querySelectorAll<HTMLElement>(
+    // 在 container 内查找
+    const containerElements = container.querySelectorAll<HTMLElement>(
       'div[class*="geetest_box"]',
     );
-    for (const el of allElements) {
-      const classList = el.className.split(" ");
-      const hasGeeTestBox = classList.some(
-        (cls) =>
-          cls === "geetest_box" ||
-          (cls.startsWith("geetest_box_") &&
-            !cls.includes("wrap") &&
-            !cls.includes("Show")),
-      );
-      const isNotWrapper = !classList.some(
-        (cls) =>
-          cls.includes("geetest_box_wrap") ||
-          cls.includes("geetest_captcha") ||
-          cls.includes("geetest_boxShow"),
-      );
-      if (hasGeeTestBox && isNotWrapper) {
+    for (const el of containerElements) {
+      if (isGeeTestBox(el)) {
         geeTestBox = el;
         break;
       }
     }
   }
 
-  if (!geeTestBox && boxWrap) {
-    geeTestBox = boxWrap.querySelector<HTMLElement>(
-      'div[class*="geetest_box"]:not([class*="geetest_box_wrap"])',
+  // 如果 container 内找不到，可能是 GeeTest SDK 将其挂载到了 body
+  // 尝试通过 holder 的 ID 或其他关联方式查找
+  if (!geeTestBox && holder) {
+    // GeeTest 通常会给 holder 一个唯一的 class 或 ID，尝试查找关联的 box
+    // 查找 holder 内的 boxWrap，然后找其中的 geetest_box
+    if (boxWrap) {
+      geeTestBox = boxWrap.querySelector<HTMLElement>(
+        'div[class*="geetest_box"]:not([class*="geetest_box_wrap"])',
+      );
+    }
+  }
+
+  // 最后的 fallback：在全局查找，但只在没有其他选择时使用
+  // 这种情况下多个验证码可能会冲突
+  if (!geeTestBox) {
+    logger.warn(
+      "未在 container 内找到 geetest_box，尝试全局查找（可能导致多验证码冲突）",
     );
+    const allElements = document.querySelectorAll<HTMLElement>(
+      'div[class*="geetest_box"]',
+    );
+    for (const el of allElements) {
+      if (isGeeTestBox(el)) {
+        geeTestBox = el;
+        break;
+      }
+    }
   }
 
   const sliderContainer = geeTestBox?.querySelector<HTMLElement>(

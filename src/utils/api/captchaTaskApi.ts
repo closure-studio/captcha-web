@@ -1,12 +1,11 @@
 import type {
+  CaptchaApiConfig,
   CaptchaTask,
   FetchTasksResponse,
   SubmitResultRequest,
   SubmitResultResponse,
-  CaptchaApiConfig,
 } from "../../types/api";
 import { generateContainerId } from "../helpers";
-import { CAPTCHA_ID } from "../../consts/consts";
 import { createModuleLogger } from "../logger";
 
 const logger = createModuleLogger("CaptchaTaskApi");
@@ -22,14 +21,14 @@ const DEFAULT_CONFIG: CaptchaApiConfig = {
 // Mock数据生成器
 function generateMockTasks(): CaptchaTask[] {
   return [
-    {
-      taskId: generateContainerId(),
-      containerId: generateContainerId(),
-      challenge: "1",
-      geetestId: CAPTCHA_ID,
-      provider: "geetest_v4",
-      type: "slide",
-    },
+    // {
+    //   taskId: generateContainerId(),
+    //   containerId: generateContainerId(),
+    //   challenge: "1",
+    //   geetestId: CAPTCHA_ID,
+    //   provider: "geetest_v4",
+    //   type: "slide",
+    // },
     {
       taskId: generateContainerId(),
       containerId: generateContainerId(),
@@ -49,7 +48,6 @@ function generateMockTasks(): CaptchaTask[] {
   //   provider: "geetest_v4" as const,
   //   type: types[i % types.length],
   //   createdAt: Date.now(),
-  //   priority: i,
   // }));
 }
 

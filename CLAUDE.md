@@ -171,7 +171,6 @@ interface SolveContext {
 interface CaptchaTask extends CaptchaInfo {
   taskId: string;
   createdAt?: number;
-  priority?: number;
 }
 
 type CaptchaResultStatus = "success" | "failed" | "timeout" | "error";

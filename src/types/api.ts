@@ -4,7 +4,6 @@ import type { CaptchaInfo } from "./type";
 export interface CaptchaTask extends CaptchaInfo {
   taskId: string; // 服务器分配的任务ID
   createdAt?: number; // 任务创建时间戳
-  priority?: number; // 优先级
 }
 
 // 获取任务列表的响应

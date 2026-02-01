@@ -1,16 +1,19 @@
+import {
+  TTShituClient,
+  TTShituTypeId,
+  type TTShituOptions,
+} from "../../utils/captcha/ttshitu/client";
 import { createModuleLogger } from "../../utils/logger";
 import {
   captureScreenshot,
   logScreenshotPreview,
   type ScreenshotResult,
 } from "../../utils/screenshot";
-import { TTShituClient, TTShituTypeId, type TTShituOptions } from "../../utils/captcha/ttshitu/client";
 import type {
-  CaptchaCollector,
   IRecognizer,
   RecognizeRequest,
   RecognizeResult,
-  ReportErrorResult,
+  ReportErrorResult
 } from "./types";
 
 const logger = createModuleLogger("TTShitu Recognizer");
@@ -27,10 +30,7 @@ export class TTShituRecognizer implements IRecognizer {
     this.client = new TTShituClient(options);
   }
 
-  async recognize(
-    request: RecognizeRequest,
-    _collector?: CaptchaCollector,
-  ): Promise<RecognizeResult> {
+  async recognize(request: RecognizeRequest): Promise<RecognizeResult> {
     try {
       if (request.type === "slide") {
         return await this.recognizeSlide(request.image);

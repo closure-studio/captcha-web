@@ -26,31 +26,44 @@ export interface ImageCropConfig {
   bottomCrop: number;
 }
 
-const DEFAULT_CROP_CONFIG: ImageCropConfig = {
+const DEFAULT_SLIDE_CROP_CONFIG: ImageCropConfig = {
   topCrop: 70,
   bottomCrop: 110,
 };
 
+const DEFAULT_CLICK_CROP_CONFIG: ImageCropConfig = {
+  topCrop: 30,
+  bottomCrop: 125,
+};
+
 /**
  * Gemini 识别器
- * 支持滑块验证码，带图片预处理（裁剪高度）
+ * 支持滑块验证码和点选验证码，带图片预处理（裁剪高度）
  */
 export class GeminiRecognizer implements IRecognizer {
   readonly name = "Gemini";
   private client: GeminiClient;
-  private cropConfig: ImageCropConfig;
+  private slideCropConfig: ImageCropConfig;
+  private clickCropConfig: ImageCropConfig;
 
   constructor(
     options?: GeminiClientOptions,
-    cropConfig?: Partial<ImageCropConfig>,
+    slideCropConfig?: Partial<ImageCropConfig>,
+    clickCropConfig?: Partial<ImageCropConfig>,
   ) {
     this.client = new GeminiClient(options);
-    this.cropConfig = { ...DEFAULT_CROP_CONFIG, ...cropConfig };
+    this.slideCropConfig = { ...DEFAULT_SLIDE_CROP_CONFIG, ...slideCropConfig };
+    this.clickCropConfig = { ...DEFAULT_CLICK_CROP_CONFIG, ...clickCropConfig };
   }
 
-  setCropConfig(cropConfig: Partial<ImageCropConfig>): void {
-    this.cropConfig = { ...this.cropConfig, ...cropConfig };
-    logger.log("裁剪配置已更新:", this.cropConfig);
+  setSlideCropConfig(cropConfig: Partial<ImageCropConfig>): void {
+    this.slideCropConfig = { ...this.slideCropConfig, ...cropConfig };
+    logger.log("滑块裁剪配置已更新:", this.slideCropConfig);
+  }
+
+  setClickCropConfig(cropConfig: Partial<ImageCropConfig>): void {
+    this.clickCropConfig = { ...this.clickCropConfig, ...cropConfig };
+    logger.log("点选裁剪配置已更新:", this.clickCropConfig);
   }
 
   async recognize(
@@ -58,57 +71,10 @@ export class GeminiRecognizer implements IRecognizer {
     collector?: CaptchaCollector,
   ): Promise<RecognizeResult> {
     try {
-      logger.log("开始识别滑块验证码");
-      const originalImage = request.image;
-
-      // 调试输出：原始图片
-      const originalDimensions = await this.getImageDimensions(originalImage);
-      logger.log(
-        `裁剪配置: topCrop=${this.cropConfig.topCrop}, bottomCrop=${this.cropConfig.bottomCrop}`,
-      );
-      this.logImagePreview(
-        "原始图片",
-        originalImage,
-        originalDimensions.width,
-        originalDimensions.height,
-      );
-
-      // 预处理：裁剪图片高度
-      logger.log("开始预处理图片（裁剪高度）...");
-      const croppedImage = await this.cropImageHeight(originalImage);
-
-      collector?.addCapture("cropped", croppedImage);
-
-      // 调试输出：裁剪后的图片
-      const croppedDimensions = await this.getImageDimensions(croppedImage);
-      this.logImagePreview(
-        "裁剪后图片",
-        croppedImage,
-        croppedDimensions.width,
-        croppedDimensions.height,
-      );
-
-      // 调用 Gemini API 识别
-      const result = await this.client.solveSlider(croppedImage);
-
-      if (!result.success || !result.data || result.data.length === 0) {
-        return {
-          success: false,
-          captchaId: "",
-          points: [],
-          message: "识别结果无效",
-        };
+      if (request.type === "slide") {
+        return await this.recognizeSlide(request.image, collector);
       }
-
-      const x = result.data[0].x;
-      logger.log("识别成功, X坐标:", x);
-
-      return {
-        success: true,
-        captchaId: "",
-        points: [{ x, y: 0 }],
-        message: "识别成功",
-      };
+      return await this.recognizeClick(request.image, collector);
     } catch (error) {
       logger.error("识别失败:", error);
       return {
@@ -118,6 +84,126 @@ export class GeminiRecognizer implements IRecognizer {
         message: error instanceof Error ? error.message : "识别失败",
       };
     }
+  }
+
+  private async recognizeSlide(
+    image: string,
+    collector?: CaptchaCollector,
+  ): Promise<RecognizeResult> {
+    logger.log("开始识别滑块验证码");
+    const originalImage = image;
+
+    // 调试输出：原始图片
+    const originalDimensions = await this.getImageDimensions(originalImage);
+    logger.log(
+      `裁剪配置: topCrop=${this.slideCropConfig.topCrop}, bottomCrop=${this.slideCropConfig.bottomCrop}`,
+    );
+    this.logImagePreview(
+      "原始图片",
+      originalImage,
+      originalDimensions.width,
+      originalDimensions.height,
+    );
+
+    // 预处理：裁剪图片高度
+    logger.log("开始预处理图片（裁剪高度）...");
+    const croppedImage = await this.cropImage(originalImage, this.slideCropConfig);
+
+    collector?.addCapture("cropped", croppedImage);
+
+    // 调试输出：裁剪后的图片
+    const croppedDimensions = await this.getImageDimensions(croppedImage);
+    this.logImagePreview(
+      "裁剪后图片",
+      croppedImage,
+      croppedDimensions.width,
+      croppedDimensions.height,
+    );
+
+    // 调用 Gemini API 识别
+    const result = await this.client.solveSlider(croppedImage);
+
+    if (!result.success || !result.data || result.data.length === 0) {
+      return {
+        success: false,
+        captchaId: "",
+        points: [],
+        message: "识别结果无效",
+      };
+    }
+
+    const x = result.data[0].x;
+    logger.log("识别成功, X坐标:", x);
+
+    return {
+      success: true,
+      captchaId: "",
+      points: [{ x, y: 0 }],
+      message: "识别成功",
+    };
+  }
+
+  private async recognizeClick(
+    image: string,
+    collector?: CaptchaCollector,
+  ): Promise<RecognizeResult> {
+    logger.log("开始识别点选验证码");
+    const originalImage = image;
+
+    // 调试输出：原始图片
+    const originalDimensions = await this.getImageDimensions(originalImage);
+    logger.log(
+      `裁剪配置: topCrop=${this.clickCropConfig.topCrop}, bottomCrop=${this.clickCropConfig.bottomCrop}`,
+    );
+    this.logImagePreview(
+      "原始图片",
+      originalImage,
+      originalDimensions.width,
+      originalDimensions.height,
+    );
+
+    // 预处理：裁剪图片高度
+    logger.log("开始预处理图片（裁剪高度）...");
+    const croppedImage = await this.cropImage(originalImage, this.clickCropConfig);
+
+    collector?.addCapture("cropped", croppedImage);
+
+    // 调试输出：裁剪后的图片
+    const croppedDimensions = await this.getImageDimensions(croppedImage);
+    this.logImagePreview(
+      "裁剪后图片",
+      croppedImage,
+      croppedDimensions.width,
+      croppedDimensions.height,
+    );
+
+    // 调用 Gemini API 识别
+    const result = await this.client.solveIcon(croppedImage);
+
+    if (!result.success || !result.data || result.data.length === 0) {
+      return {
+        success: false,
+        captchaId: "",
+        points: [],
+        message: "识别结果无效",
+      };
+    }
+
+    // 补偿裁剪偏移：识别结果基于裁剪后的图片，需要加上 topCrop 还原到原始坐标
+    const { topCrop } = this.clickCropConfig;
+    const compensatedPoints = result.data.map((point) => ({
+      x: point.x,
+      y: point.y + topCrop,
+    }));
+
+    logger.log("识别成功, 原始坐标点:", result.data);
+    logger.log("补偿后坐标点 (y - %d):", topCrop, compensatedPoints);
+    return {
+      success: true,
+      captchaId: "",
+      points: compensatedPoints,
+      message: "识别成功",
+    };
   }
 
   async reportError(): Promise<ReportErrorResult> {
@@ -141,11 +227,17 @@ export class GeminiRecognizer implements IRecognizer {
     }
   }
 
-  private async cropImageHeight(base64Image: string): Promise<string> {
+  /**
+   * 裁剪图片高度
+   */
+  private async cropImage(
+    base64Image: string,
+    config: ImageCropConfig,
+  ): Promise<string> {
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => {
-        const { topCrop, bottomCrop } = this.cropConfig;
+        const { topCrop, bottomCrop } = config;
         const originalWidth = img.width;
         const originalHeight = img.height;
         const croppedHeight = originalHeight - topCrop - bottomCrop;

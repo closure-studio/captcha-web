@@ -63,6 +63,33 @@ export class GeminiClient {
     logger.log("滑块识别成功:", response.data);
     return response.data;
   }
+
+  /**
+   * 识别图标点选验证码
+   * @param image Base64 编码的图片或 data URL
+   * @returns 识别结果，包含坐标点数组
+   */
+  async solveIcon(image: string): Promise<GeminiSlideResponse> {
+    logger.log("发送图标点选识别请求...");
+
+    const response = await axios.post<GeminiSlideResponse>(
+      `${this.baseUrl}/solver/gemini/geetest/icon`,
+      { image },
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+        timeout: 60000,
+      },
+    );
+
+    if (!response.data.success) {
+      throw new Error("Gemini solveIcon error: Request failed");
+    }
+
+    logger.log("图标点选识别成功:", response.data);
+    return response.data;
+  }
 }
 
 // 默认客户端实例
@@ -83,4 +110,11 @@ export function getDefaultGeminiClient(): GeminiClient {
  */
 export async function solveSlider(image: string): Promise<GeminiSlideResponse> {
   return getDefaultGeminiClient().solveSlider(image);
+}
+
+/**
+ * 识别图标点选验证码（使用默认客户端）
+ */
+export async function solveIcon(image: string): Promise<GeminiSlideResponse> {
+  return getDefaultGeminiClient().solveIcon(image);
 }

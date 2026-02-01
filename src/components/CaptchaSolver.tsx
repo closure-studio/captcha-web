@@ -1,11 +1,10 @@
 import { type JSX, useMemo } from "react";
-import type { CaptchaInfo } from "../types/type";
-import { TTShituRecognizer } from "../core/recognizers/TTShituRecognizer";
-import { GeminiRecognizer } from "../core/recognizers/GeminiRecognizer";
-import { SlideStrategy } from "../core/strategies/SlideStrategy";
-import { ClickStrategy } from "../core/strategies/ClickStrategy";
-import { CaptchaType } from "../core/recognizers";
 import { captchaConfig } from "../core/config/captcha.config";
+import { CaptchaType } from "../core/recognizers";
+import { GeminiRecognizer } from "../core/recognizers/GeminiRecognizer";
+import { ClickStrategy } from "../core/strategies/ClickStrategy";
+import { SlideStrategy } from "../core/strategies/SlideStrategy";
+import type { CaptchaInfo } from "../types/type";
 import { GeetestV4Captcha } from "./GeetestV4Captcha";
 
 interface CaptchaSolverProps {
@@ -24,7 +23,7 @@ export const CaptchaSolver = (props: CaptchaSolverProps): JSX.Element => {
     const { slide, click } = captchaConfig;
 
     if (captchaInfo.type === "word") {
-      const recognizer = new TTShituRecognizer();
+      const recognizer = new GeminiRecognizer();
       return new ClickStrategy(recognizer, CaptchaType.WORLD, {
         delay: { ...click.delay },
         debug: true,
@@ -32,7 +31,7 @@ export const CaptchaSolver = (props: CaptchaSolverProps): JSX.Element => {
     }
 
     if (captchaInfo.type === "icon") {
-      const recognizer = new TTShituRecognizer();
+      const recognizer = new GeminiRecognizer();
       return new ClickStrategy(recognizer, CaptchaType.ICON, {
         delay: { ...click.delay },
         debug: true,
@@ -40,10 +39,9 @@ export const CaptchaSolver = (props: CaptchaSolverProps): JSX.Element => {
     }
 
     // Default: slide with Gemini
-    const recognizer = new GeminiRecognizer(
-      undefined,
-      { ...slide.gemini.cropConfig },
-    );
+    const recognizer = new GeminiRecognizer(undefined, {
+      ...slide.gemini.cropConfig,
+    });
     return new SlideStrategy(recognizer, {
       xOffset: slide.gemini.xOffset,
       slideSteps: slide.gemini.slideSteps,

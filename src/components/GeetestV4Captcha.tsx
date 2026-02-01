@@ -1,56 +1,81 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { GeeTest4Config, GeeTest4Error } from "../../../types/geetest4";
-import {
-  CaptchaSolveCode,
-  type ICaptchaProvider,
-  type CaptchaSolveResult,
-} from "../../../utils/captcha/type/provider.ts";
-import {
-  autoClickCaptchaButton,
-  loadGeeTestV4Script,
-} from "../../../utils/geetest/geetest.ts";
-import { validateGeeTest } from "../../../utils/geetest/myServer.ts";
-import { createModuleLogger } from "../../../utils/logger.ts";
-import type { CaptchaStatus } from "../../../consts/captcha.ts";
-import { CAPTCHA_DELAYS, MAX_RETRY_COUNT } from "../../../consts/captcha.ts";
-import type {
-  CaptchaRefs,
-  GeeTestV4CaptchaProps,
-} from "../../../types/captcha.ts";
-import {
-  generateContainerId,
-  getErrorMessage,
-} from "../../../utils/helpers.ts";
+import type { GeeTest4Config, GeeTest4Error, GeeTest4Instance } from "../types/geetest4";
+import type { CaptchaInfo } from "../types/type";
+import { loadGeeTestV4Script, autoClickCaptchaButton, validateGeeTest } from "../adapters/geetest";
+import type { ISolveStrategy } from "../core/strategies";
+import type { RecognizeResult, CaptchaCollector } from "../core/recognizers";
+import { captchaConfig } from "../core/config/captcha.config";
+import { uploadCaptchaData } from "../utils/captcha/upload";
+import { createModuleLogger } from "../utils/logger";
+import { generateContainerId, getErrorMessage } from "../utils/helpers";
 import {
   ErrorDisplay,
   LoadingSpinner,
   StatusIndicator,
-} from "../../ui/index.ts";
-import {
-  type CaptchaCollector,
-  useCaptchaCollector,
-} from "./collector/useCaptchaCollector.ts";
-import { uploadCaptchaData } from "../../../utils/captcha/upload.ts";
+} from "./ui/StatusComponents";
 
-const logger = createModuleLogger("GeeTestV4Base");
+const logger = createModuleLogger("GeetestV4Captcha");
 
-export interface GeetestV4BaseProps extends GeeTestV4CaptchaProps {
-  /**
-   * Specific auto-solve implementation for the captcha type
-   */
-  onAutoSolve: (
-    container: HTMLElement,
-    provider: ICaptchaProvider,
-    collector: CaptchaCollector,
-  ) => Promise<CaptchaSolveResult>;
+// ============ Types ============
+
+export type CaptchaStatus = "idle" | "solving" | "validating" | "success" | "error" | "retrying";
+
+export interface GeetestV4CaptchaProps {
+  captchaInfo: CaptchaInfo;
+  strategy: ISolveStrategy;
+  onComplete?: () => void;
 }
 
+interface CaptchaRefs {
+  captcha: GeeTest4Instance | null;
+  recognitionId: string | null;
+  solveResult: RecognizeResult | null;
+  retryCount: number;
+}
+
+// ============ Collector Hook ============
+
+interface FullCaptchaCollector extends CaptchaCollector {
+  getArgs: () => { captures: Record<string, string>; metadata: Record<string, unknown> };
+  reset: () => void;
+}
+
+function useCaptchaCollector(): FullCaptchaCollector {
+  const capturesRef = useRef<Record<string, string>>({});
+  const metadataRef = useRef<Record<string, unknown>>({});
+
+  const addCapture = useCallback((name: string, base64: string) => {
+    capturesRef.current[name] = base64;
+  }, []);
+
+  const setMetadata = useCallback((key: string, value: unknown) => {
+    metadataRef.current[key] = value;
+  }, []);
+
+  const getArgs = useCallback(() => ({
+    captures: { ...capturesRef.current },
+    metadata: { ...metadataRef.current },
+  }), []);
+
+  const reset = useCallback(() => {
+    capturesRef.current = {};
+    metadataRef.current = {};
+  }, []);
+
+  return useMemo(
+    () => ({ addCapture, setMetadata, getArgs, reset }),
+    [addCapture, setMetadata, getArgs, reset]
+  );
+}
+
+// ============ Main Component ============
+
 /**
- * GeeTest v4 Base Component
- * Encapsulates common logic for initialization, state management, and lifecycle
+ * GeeTest V4 统一验证码组件
+ * 合并了原来的 GeetestV4Slider, GeetestV4Icon, GeetestV4World
  */
-export function GeetestV4Base(props: GeetestV4BaseProps) {
-  const { captchaInfo, provider, onComplete, onAutoSolve } = props;
+export function GeetestV4Captcha(props: GeetestV4CaptchaProps) {
+  const { captchaInfo, strategy, onComplete } = props;
 
   // Refs
   const innerContainerId = useRef(generateContainerId());
@@ -69,8 +94,9 @@ export function GeetestV4Base(props: GeetestV4BaseProps) {
   const [statusMessage, setStatusMessage] = useState("");
 
   const collector = useCaptchaCollector();
+  const { delays, maxRetryCount } = captchaConfig;
 
-  // Auto solve wrapper
+  // Auto solve
   const autoSolveCaptcha = useCallback(async (): Promise<string> => {
     const parentContainer = document.getElementById(captchaInfo.containerId);
     if (!parentContainer) throw new Error("未找到外部容器");
@@ -78,21 +104,19 @@ export function GeetestV4Base(props: GeetestV4BaseProps) {
     collector.reset();
 
     // Wait for animation/render
-    await new Promise((resolve) =>
-      setTimeout(resolve, CAPTCHA_DELAYS.SCREENSHOT),
-    );
+    await new Promise((resolve) => setTimeout(resolve, delays.screenshot));
 
-    // Delegate specific solving logic to the child component
-    const solveResult = await onAutoSolve(parentContainer, provider, collector);
-
-    if (solveResult.code !== CaptchaSolveCode.SUCCESS) {
-      throw new Error(`${provider.name} 识别失败: ${solveResult.message}`);
-    }
+    // Delegate solving to the strategy
+    const solveResult = await strategy.solve({
+      container: parentContainer,
+      containerId: captchaInfo.containerId,
+      collector,
+    });
 
     // Save result
-    refs.current.solveResult = solveResult;
-    return solveResult.data.captchaId;
-  }, [captchaInfo.containerId, provider, onAutoSolve, collector]);
+    refs.current.solveResult = solveResult.recognizeResult;
+    return solveResult.recognizeResult.captchaId;
+  }, [captchaInfo.containerId, strategy, collector, delays.screenshot]);
 
   // Handle successful validation (Front-end)
   const handleSuccess = useCallback(async () => {
@@ -105,12 +129,11 @@ export function GeetestV4Base(props: GeetestV4BaseProps) {
     logger.log("GeeTest v4 前端验证成功:", result);
 
     // Collect and Upload Data
-    collector.setMetadata("solver", provider.name);
+    collector.setMetadata("solver", strategy.type);
     collector.setMetadata("geetestId", captchaInfo.geetestId);
     collector.setMetadata("challenge", captchaInfo.challenge);
     collector.setMetadata("riskType", captchaInfo.riskType);
     collector.setMetadata("validateResult", result);
-    // add solveResult data
     if (refs.current.solveResult) {
       collector.setMetadata("solveResult", refs.current.solveResult);
     }
@@ -143,56 +166,35 @@ export function GeetestV4Base(props: GeetestV4BaseProps) {
       setStatusMessage(getErrorMessage(error, "服务器验证失败"));
       onComplete?.();
     }
-  }, [captchaInfo, collector, onComplete, provider]);
+  }, [captchaInfo, collector, onComplete, strategy.type]);
 
   // Handle validation failure with retry logic
   const handleFail = useCallback(
     async (err: GeeTest4Error) => {
       logger.error("GeeTest v4 validation failed:", err);
 
-      // Report error if we have a recognition ID
-      if (refs.current.recognitionId) {
-        try {
-          logger.log(
-            `${provider.name}: 调用报错接口, ID:`,
-            refs.current.recognitionId,
-          );
-          await provider.reportError(refs.current.recognitionId);
-        } catch (reportError) {
-          logger.error(`${provider.name}: 报错失败:`, reportError);
-        }
-        refs.current.recognitionId = null;
-      }
-
       // Retry logic
-      if (refs.current.retryCount < MAX_RETRY_COUNT) {
+      if (refs.current.retryCount < maxRetryCount) {
         refs.current.retryCount += 1;
         const retryNum = refs.current.retryCount;
-        logger.log(`${provider.name}: 开始第 ${retryNum} 次重试...`);
+        logger.log(`开始第 ${retryNum} 次重试...`);
         setStatus("retrying");
         setStatusMessage(
-          `验证失败，正在重试 (${retryNum}/${MAX_RETRY_COUNT})...`,
+          `验证失败，正在重试 (${retryNum}/${maxRetryCount})...`,
         );
 
         setTimeout(async () => {
           try {
             setStatus("solving");
-            setStatusMessage(
-              `${provider.name} 识别中 (重试 ${retryNum}/${MAX_RETRY_COUNT})...`,
-            );
+            setStatusMessage(`识别中 (重试 ${retryNum}/${maxRetryCount})...`);
             refs.current.recognitionId = await autoSolveCaptcha();
           } catch (error) {
-            logger.error(
-              `${provider.name} error:`,
-              getErrorMessage(error, "识别失败"),
-            );
+            logger.error("识别失败:", getErrorMessage(error, "识别失败"));
             setStatus("error");
-            setStatusMessage(
-              getErrorMessage(error, `${provider.name} 识别失败`),
-            );
+            setStatusMessage(getErrorMessage(error, "识别失败"));
             onComplete?.();
           }
-        }, CAPTCHA_DELAYS.RETRY_WAIT);
+        }, delays.retryWait);
       } else {
         setStatus("error");
         setStatusMessage(`验证失败: ${err.msg || "已达最大重试次数"}`);
@@ -200,7 +202,7 @@ export function GeetestV4Base(props: GeetestV4BaseProps) {
         onComplete?.();
       }
     },
-    [provider, autoSolveCaptcha, onComplete],
+    [autoSolveCaptcha, onComplete, maxRetryCount, delays.retryWait],
   );
 
   // Handle GeeTest error
@@ -227,20 +229,17 @@ export function GeetestV4Base(props: GeetestV4BaseProps) {
       setTimeout(async () => {
         try {
           setStatus("solving");
-          setStatusMessage(`${provider.name} 识别中...`);
+          setStatusMessage("识别中...");
           refs.current.recognitionId = await autoSolveCaptcha();
         } catch (error) {
-          logger.error(
-            `${provider.name} error:`,
-            getErrorMessage(error, "识别失败"),
-          );
+          logger.error("识别失败:", getErrorMessage(error, "识别失败"));
           setStatus("error");
-          setStatusMessage(getErrorMessage(error, `${provider.name} 识别失败`));
+          setStatusMessage(getErrorMessage(error, "识别失败"));
           onComplete?.();
         }
-      }, CAPTCHA_DELAYS.IMAGE_LOAD);
-    }, CAPTCHA_DELAYS.AUTO_CLICK);
-  }, [provider, containerRef, autoSolveCaptcha, onComplete]);
+      }, delays.imageLoad);
+    }, delays.autoClick);
+  }, [autoSolveCaptcha, onComplete, delays.autoClick, delays.imageLoad]);
 
   // Handle captcha close
   const handleClose = useCallback(() => {
@@ -352,8 +351,10 @@ export function GeetestV4Base(props: GeetestV4BaseProps) {
 
       {/* Footer */}
       <p className="text-center text-xs text-slate-400 mt-4">
-        Powered by GeeTest v4 | Provider: {provider.name}
+        Powered by GeeTest v4 | Strategy: {strategy.type}
       </p>
     </div>
   );
 }
+
+export default GeetestV4Captcha;

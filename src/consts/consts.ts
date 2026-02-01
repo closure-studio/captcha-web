@@ -4,6 +4,3 @@ export const CAPTCHA_ID =
 
 // GeeTest v4 CDN URL
 export const GEETEST4_JS_URL = "https://static.geetest.com/v4/gt4.js";
-
-// Re-export captcha constants
-export * from "./captcha";

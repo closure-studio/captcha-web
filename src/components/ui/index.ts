@@ -8,4 +8,5 @@ export {
   ErrorIcon,
   ErrorDisplay,
   StatusIndicator,
+  type CaptchaStatus,
 } from "./StatusComponents";

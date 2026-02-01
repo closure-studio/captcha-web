@@ -1,0 +1,80 @@
+import { type JSX, useMemo } from "react";
+import type { CaptchaInfo } from "../types/type";
+import { TTShituRecognizer } from "../core/recognizers/TTShituRecognizer";
+import { GeminiRecognizer } from "../core/recognizers/GeminiRecognizer";
+import { SlideStrategy } from "../core/strategies/SlideStrategy";
+import { ClickStrategy } from "../core/strategies/ClickStrategy";
+import { CaptchaType } from "../core/recognizers";
+import { captchaConfig } from "../core/config/captcha.config";
+import { GeetestV4Captcha } from "./GeetestV4Captcha";
+
+interface CaptchaSolverProps {
+  captchaInfo: CaptchaInfo;
+  handleComplete?: () => void;
+}
+
+/**
+ * 统一验证码入口组件
+ * 根据 captchaInfo 自动选择识别器和策略
+ */
+export const CaptchaSolver = (props: CaptchaSolverProps): JSX.Element => {
+  const { captchaInfo, handleComplete } = props;
+
+  const strategy = useMemo(() => {
+    const { slide, click } = captchaConfig;
+
+    if (captchaInfo.type === "word") {
+      const recognizer = new TTShituRecognizer();
+      return new ClickStrategy(recognizer, CaptchaType.WORLD, {
+        delay: { ...click.delay },
+        debug: true,
+      });
+    }
+
+    if (captchaInfo.type === "icon") {
+      const recognizer = new TTShituRecognizer();
+      return new ClickStrategy(recognizer, CaptchaType.ICON, {
+        delay: { ...click.delay },
+        debug: true,
+      });
+    }
+
+    // Default: slide with Gemini
+    const recognizer = new GeminiRecognizer(
+      undefined,
+      { ...slide.gemini.cropConfig },
+    );
+    return new SlideStrategy(recognizer, {
+      xOffset: slide.gemini.xOffset,
+      slideSteps: slide.gemini.slideSteps,
+      stepDelay: { min: 15, max: 25 },
+      debug: true,
+    });
+  }, [captchaInfo]);
+
+  const renderCaptchaComponent = () => {
+    switch (captchaInfo.provider) {
+      case "geetest_v4":
+        return (
+          <GeetestV4Captcha
+            captchaInfo={captchaInfo}
+            strategy={strategy}
+            onComplete={handleComplete}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div
+      id={captchaInfo.containerId}
+      className="captcha-isolation-container w-[340px] h-[386px]"
+    >
+      {renderCaptchaComponent()}
+    </div>
+  );
+};
+
+export default CaptchaSolver;

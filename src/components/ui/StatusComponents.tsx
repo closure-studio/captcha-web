@@ -2,8 +2,41 @@
  * 通用 UI 组件
  */
 
-import type { CaptchaStatus } from "../../consts/captcha";
-import { STATUS_STYLES } from "../../consts/captcha";
+// ============ Status Types ============
+
+export type CaptchaStatus = "idle" | "solving" | "validating" | "success" | "error" | "retrying";
+
+interface StatusStyle {
+  bg: string;
+  text: string;
+  spinner?: string;
+}
+
+const STATUS_STYLES: Record<Exclude<CaptchaStatus, "idle">, StatusStyle> = {
+  solving: {
+    bg: "bg-blue-50",
+    text: "text-blue-700",
+    spinner: "border-blue-500",
+  },
+  retrying: {
+    bg: "bg-orange-50",
+    text: "text-orange-700",
+    spinner: "border-orange-500",
+  },
+  validating: {
+    bg: "bg-amber-50",
+    text: "text-amber-700",
+    spinner: "border-amber-500",
+  },
+  success: {
+    bg: "bg-emerald-50",
+    text: "text-emerald-700",
+  },
+  error: {
+    bg: "bg-red-50",
+    text: "text-red-700",
+  },
+};
 
 // ============ Spinner Components ============
 

@@ -2,9 +2,9 @@
  * 验证码相关类型定义
  */
 import type { GeeTest4Instance } from "./geetest4.d.ts";
-import type { CaptchaSolveResult } from "../utils/captcha/type/provider.ts";
+import type { RecognizeResult } from "../core/recognizers";
 import type { CaptchaInfo } from "./type.ts";
-import type { ICaptchaProvider } from "../utils/captcha/type/provider.ts";
+import type { ISolveStrategy } from "../core/strategies";
 
 /**
  * GeeTestV4Captcha 组件 Props
@@ -12,9 +12,9 @@ import type { ICaptchaProvider } from "../utils/captcha/type/provider.ts";
 export interface GeeTestV4CaptchaProps {
   /** 验证码类型配置 */
   captchaInfo: CaptchaInfo;
-  /** 验证码提供者实例 */
-  provider: ICaptchaProvider;
-  /** 验证完成回调（包含服务器验证结果） */
+  /** 求解策略 */
+  strategy: ISolveStrategy;
+  /** 验证完成回调 */
   onComplete?: () => void;
 }
 
@@ -27,7 +27,7 @@ export interface CaptchaRefs {
   /** 当前识别结果ID */
   recognitionId: string | null;
   /** 当前识别结果 */
-  solveResult: CaptchaSolveResult | null;
+  solveResult: RecognizeResult | null;
   /** 重试次数 */
   retryCount: number;
 }

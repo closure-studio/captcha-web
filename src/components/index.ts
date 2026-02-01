@@ -1,5 +1,6 @@
-// Re-export types from types folder
-export type { CaptchaRefs, GeeTestV4CaptchaProps } from '../types/captcha';
-
 // Re-export UI components
-export * from './ui';
+export * from "./ui";
+
+// Export new unified components
+export { CaptchaSolver } from "./CaptchaSolver";
+export { GeetestV4Captcha } from "./GeetestV4Captcha";

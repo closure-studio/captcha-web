@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import "./App.css";
-import { MyCaptchaSolver } from "./components/captcha";
+import { CaptchaSolver } from "./components/CaptchaSolver";
 import type { CaptchaInfo } from "./types/type";
-import { generateContainerId } from "./utils";
+import { generateContainerId } from "./utils/helpers";
 import { CAPTCHA_ID } from "./consts/consts";
 
 function App() {
@@ -73,7 +73,7 @@ function App() {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
       <div className="flex flex-col gap-6">
         {challengeList.map((captchaInfo) => (
-          <MyCaptchaSolver
+          <CaptchaSolver
             key={captchaInfo.containerId}
             captchaInfo={captchaInfo}
             handleComplete={handleComplete(captchaInfo.containerId)}

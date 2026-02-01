@@ -122,7 +122,7 @@ export function useCaptchaQueue(
         });
 
         if (response.success) {
-          logger.info(`任务结果已上报: ${task.taskId}, 状态: ${status}`);
+          logger.info(`任务结果已上报: ${task.taskId}`);
         } else {
           logger.error(`任务结果上报失败: ${response.message}`);
         }
@@ -158,7 +158,6 @@ export function useCaptchaQueue(
   const fetchTasks = useCallback(async () => {
     // 如果已达到最大并发数，不再获取新任务
     if (tasksRef.current.length >= opts.maxConcurrent) {
-      logger.info(`已达到最大并发数 ${opts.maxConcurrent}，暂不获取新任务`);
       return;
     }
 
@@ -171,7 +170,6 @@ export function useCaptchaQueue(
       if (response.success) {
         const newTasks = response.data;
         if (newTasks.length > 0) {
-          logger.info(`获取到 ${newTasks.length} 个新任务`);
           setTasks((prev) => {
             // 过滤掉已存在的任务
             const existingIds = new Set(prev.map((t) => t.taskId));
@@ -215,7 +213,6 @@ export function useCaptchaQueue(
     if (pollTimerRef.current) return;
 
     setIsPolling(true);
-    logger.info("开始轮询任务");
 
     // 立即获取一次
     fetchTasksRef.current();
@@ -233,7 +230,6 @@ export function useCaptchaQueue(
       pollTimerRef.current = null;
     }
     setIsPolling(false);
-    logger.info("停止轮询任务");
   }, []);
 
   // 监听任务列表变化，为新任务设置超时

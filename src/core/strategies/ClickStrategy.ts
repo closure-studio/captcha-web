@@ -37,8 +37,6 @@ export class ClickStrategy implements ISolveStrategy {
     const { base64, canvas } = captureResult;
     collector.addCapture("original", base64);
 
-    logger.log(`${this.recognizer.name}: 开始识别验证码...`);
-
     // 2. Recognize
     const recognizeResult = await this.recognizer.recognize(
       { image: base64, type: this.captchaType },
@@ -55,12 +53,7 @@ export class ClickStrategy implements ISolveStrategy {
       throw new Error(`${this.recognizer.name} 识别结果无效: 无坐标点`);
     }
 
-    logger.log(
-      `${this.recognizer.name}: 识别成功, 坐标点:`,
-      recognizeResult.points,
-      "ID:",
-      recognizeResult.captchaId,
-    );
+    logger.log(`${this.recognizer.name}: 识别成功, 坐标点:`, recognizeResult.points);
 
     // 3. Draw Debug Overlay
     const markedCanvas = drawDebugOverlay(canvas, {
@@ -74,9 +67,6 @@ export class ClickStrategy implements ISolveStrategy {
     const elements = findGeeTestElements(container);
 
     if (!elements.captchaWindow) {
-      logger.log(`${this.recognizer.name}: 元素调试:`, {
-        captchaWindow: elements.captchaWindow,
-      });
       throw new Error("未找到验证码图片窗口元素");
     }
 
@@ -100,7 +90,6 @@ export class ClickStrategy implements ISolveStrategy {
       );
     }
 
-    logger.log(`${this.recognizer.name}: 点选 bypass 完成`);
     return { recognizeResult, bypassResult };
   }
 }

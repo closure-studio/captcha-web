@@ -1,11 +1,8 @@
-import { createModuleLogger } from "../../utils/logger";
 import type {
   BypassResult,
   GeeTestSlideBypassContext,
   SlideConfig,
 } from "./types";
-
-const logger = createModuleLogger("SlideRunner");
 
 /**
  * 默认滑动配置
@@ -64,22 +61,6 @@ export class SlideRunner {
       // 最终的鼠标目标位置
       const endX = startX + slideDistance;
       const endY = startY;
-
-      if (this.config.debug) {
-        this.logDebugInfo({
-          targetX,
-          canvasWidth,
-          windowWidth: windowRect.width,
-          scaleFactor,
-          scaledTargetX,
-          xOffset: this.config.xOffset,
-          sliceRect,
-          sliceStartX,
-          slideDistance,
-          startX,
-          endX,
-        });
-      }
 
       // 执行滑动
       await this.performSlide(sliderBtn, startX, startY, endX, endY);
@@ -172,38 +153,4 @@ export class SlideRunner {
     document.dispatchEvent(createMouseEvent("mouseup", endX, endY));
   }
 
-  private logDebugInfo(info: {
-    targetX: number;
-    canvasWidth: number;
-    windowWidth: number;
-    scaleFactor: number;
-    scaledTargetX: number;
-    xOffset: number;
-    sliceRect: DOMRect;
-    sliceStartX: number;
-    slideDistance: number;
-    startX: number;
-    endX: number;
-  }): void {
-    logger.log("========== 滑动调试信息 ==========");
-    logger.log("识别返回的 targetX (canvas坐标):", info.targetX);
-    logger.log("Canvas 宽度:", info.canvasWidth);
-    logger.log("验证码窗口 DOM 宽度:", info.windowWidth);
-    logger.log("缩放比例 (DOM/Canvas):", info.scaleFactor);
-    logger.log("缩放后的 targetX (DOM坐标):", info.scaledTargetX);
-    logger.log("X 偏移量校正:", info.xOffset);
-    logger.log("拼图块当前位置:", {
-      left: info.sliceRect.left,
-      relativeLeft: info.sliceStartX,
-      width: info.sliceRect.width,
-    });
-    logger.log("滑动计算:", {
-      sliceStartX: info.sliceStartX,
-      scaledTargetX: info.scaledTargetX,
-      slideDistance: info.slideDistance,
-      startX: info.startX,
-      endX: info.endX,
-    });
-    logger.log("=====================================");
-  }
 }

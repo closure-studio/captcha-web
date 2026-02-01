@@ -43,8 +43,6 @@ export class GeminiClient {
    * @returns 识别结果，包含坐标点数组
    */
   async solveSlider(image: string): Promise<GeminiSlideResponse> {
-    logger.log("发送滑块识别请求...");
-
     const response = await axios.post<GeminiSlideResponse>(
       `${this.baseUrl}/solver/gemini/geetest/slider`,
       { image },
@@ -60,7 +58,6 @@ export class GeminiClient {
       throw new Error("Gemini solveSlider error: Request failed");
     }
 
-    logger.log("滑块识别成功:", response.data);
     return response.data;
   }
 
@@ -70,8 +67,6 @@ export class GeminiClient {
    * @returns 识别结果，包含坐标点数组
    */
   async solveIcon(image: string): Promise<GeminiSlideResponse> {
-    logger.log("发送图标点选识别请求...");
-
     const response = await axios.post<GeminiSlideResponse>(
       `${this.baseUrl}/solver/gemini/geetest/icon`,
       { image },
@@ -87,7 +82,6 @@ export class GeminiClient {
       throw new Error("Gemini solveIcon error: Request failed");
     }
 
-    logger.log("图标点选识别成功:", response.data);
     return response.data;
   }
 }

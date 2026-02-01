@@ -38,9 +38,7 @@ export async function uploadCaptchaData(args: UploadArgs) {
   });
 
   try {
-    logger.log(`Uploading ${files.length} files to ${baseDir}...`);
-    const result = await uploadR2Files(files);
-    logger.log("Upload success:", result);
+    await uploadR2Files(files);
   } catch (error) {
     logger.error("Upload failed:", error);
   }

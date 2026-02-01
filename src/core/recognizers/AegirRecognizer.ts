@@ -28,7 +28,6 @@ export class AegirRecognizer implements IRecognizer {
 
   async recognize(request: RecognizeRequest): Promise<RecognizeResult> {
     try {
-      logger.log("开始识别验证码");
       const response = await this.client.selectCaptcha(request.image);
       const points = this.client.parsePoints(response.data.points);
 
@@ -41,7 +40,6 @@ export class AegirRecognizer implements IRecognizer {
         };
       }
 
-      logger.log("识别成功, 坐标点:", points);
       return {
         success: true,
         captchaId: response.data.captcha_id,
@@ -65,12 +63,7 @@ export class AegirRecognizer implements IRecognizer {
 
   async capture(containerId: string): Promise<ScreenshotResult | null> {
     try {
-      logger.log("截图目标容器ID:", containerId);
       const result = await captureScreenshot(containerId);
-      logger.log("截图元素尺寸:", {
-        width: result.canvas.width,
-        height: result.canvas.height,
-      });
       logScreenshotPreview(result, 400, 300);
       return result;
     } catch (error) {

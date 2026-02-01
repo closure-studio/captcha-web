@@ -58,12 +58,10 @@ export class GeminiRecognizer implements IRecognizer {
 
   setSlideCropConfig(cropConfig: Partial<ImageCropConfig>): void {
     this.slideCropConfig = { ...this.slideCropConfig, ...cropConfig };
-    logger.log("滑块裁剪配置已更新:", this.slideCropConfig);
   }
 
   setClickCropConfig(cropConfig: Partial<ImageCropConfig>): void {
     this.clickCropConfig = { ...this.clickCropConfig, ...cropConfig };
-    logger.log("点选裁剪配置已更新:", this.clickCropConfig);
   }
 
   async recognize(
@@ -90,14 +88,10 @@ export class GeminiRecognizer implements IRecognizer {
     image: string,
     collector?: CaptchaCollector,
   ): Promise<RecognizeResult> {
-    logger.log("开始识别滑块验证码");
     const originalImage = image;
 
     // 调试输出：原始图片
     const originalDimensions = await this.getImageDimensions(originalImage);
-    logger.log(
-      `裁剪配置: topCrop=${this.slideCropConfig.topCrop}, bottomCrop=${this.slideCropConfig.bottomCrop}`,
-    );
     this.logImagePreview(
       "原始图片",
       originalImage,
@@ -106,7 +100,6 @@ export class GeminiRecognizer implements IRecognizer {
     );
 
     // 预处理：裁剪图片高度
-    logger.log("开始预处理图片（裁剪高度）...");
     const croppedImage = await this.cropImage(originalImage, this.slideCropConfig);
 
     collector?.addCapture("cropped", croppedImage);
@@ -133,7 +126,6 @@ export class GeminiRecognizer implements IRecognizer {
     }
 
     const x = result.data[0].x;
-    logger.log("识别成功, X坐标:", x);
 
     return {
       success: true,
@@ -147,14 +139,10 @@ export class GeminiRecognizer implements IRecognizer {
     image: string,
     collector?: CaptchaCollector,
   ): Promise<RecognizeResult> {
-    logger.log("开始识别点选验证码");
     const originalImage = image;
 
     // 调试输出：原始图片
     const originalDimensions = await this.getImageDimensions(originalImage);
-    logger.log(
-      `裁剪配置: topCrop=${this.clickCropConfig.topCrop}, bottomCrop=${this.clickCropConfig.bottomCrop}`,
-    );
     this.logImagePreview(
       "原始图片",
       originalImage,
@@ -163,7 +151,6 @@ export class GeminiRecognizer implements IRecognizer {
     );
 
     // 预处理：裁剪图片高度
-    logger.log("开始预处理图片（裁剪高度）...");
     const croppedImage = await this.cropImage(originalImage, this.clickCropConfig);
 
     collector?.addCapture("cropped", croppedImage);
@@ -196,8 +183,6 @@ export class GeminiRecognizer implements IRecognizer {
       y: point.y + topCrop,
     }));
 
-    logger.log("识别成功, 原始坐标点:", result.data);
-    logger.log("补偿后坐标点 (y - %d):", topCrop, compensatedPoints);
     return {
       success: true,
       captchaId: "",
@@ -207,18 +192,12 @@ export class GeminiRecognizer implements IRecognizer {
   }
 
   async reportError(): Promise<ReportErrorResult> {
-    logger.log("Gemini 不支持报错接口");
     return { success: false, message: "Gemini 不支持报错接口" };
   }
 
   async capture(containerId: string): Promise<ScreenshotResult | null> {
     try {
-      logger.log("截图目标容器ID:", containerId);
       const result = await captureScreenshot(containerId);
-      logger.log("截图元素尺寸:", {
-        width: result.canvas.width,
-        height: result.canvas.height,
-      });
       logScreenshotPreview(result, 400, 300);
       return result;
     } catch (error) {

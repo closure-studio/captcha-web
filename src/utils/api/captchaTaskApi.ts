@@ -99,7 +99,6 @@ class CaptchaTaskApi {
   // Mock获取任务
   private async mockFetchTasks(): Promise<FetchTasksResponse> {
     await delay(300); // 模拟网络延迟
-    logger.info("使用Mock数据获取任务");
     return {
       success: true,
       data: generateMockTasks(),
@@ -142,14 +141,9 @@ class CaptchaTaskApi {
 
   // Mock提交结果
   private async mockSubmitResult(
-    request: SubmitResultRequest,
+    _request: SubmitResultRequest,
   ): Promise<SubmitResultResponse> {
     await delay(200); // 模拟网络延迟
-    logger.info("Mock提交结果:", {
-      taskId: request.taskId,
-      status: request.status,
-      duration: request.duration,
-    });
     return {
       success: true,
       message: "Mock result submitted successfully",

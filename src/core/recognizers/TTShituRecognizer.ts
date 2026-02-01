@@ -48,7 +48,6 @@ export class TTShituRecognizer implements IRecognizer {
   }
 
   private async recognizeSlide(image: string): Promise<RecognizeResult> {
-    logger.log("开始识别滑块验证码");
     const result = await this.client.predict(image);
     const x = parseInt(result.result, 10);
 
@@ -61,7 +60,6 @@ export class TTShituRecognizer implements IRecognizer {
       };
     }
 
-    logger.log("识别成功, X坐标:", x);
     return {
       success: true,
       captchaId: result.id,
@@ -71,7 +69,6 @@ export class TTShituRecognizer implements IRecognizer {
   }
 
   private async recognizeClick(image: string): Promise<RecognizeResult> {
-    logger.log("开始识别文字点选验证码");
     const result = await this.client.predict(image, TTShituTypeId.CLICK_1_4);
     const points = this.parseClickPoints(result.result);
 
@@ -84,7 +81,6 @@ export class TTShituRecognizer implements IRecognizer {
       };
     }
 
-    logger.log("识别成功, 坐标点:", points);
     return {
       success: true,
       captchaId: result.id,
@@ -109,9 +105,7 @@ export class TTShituRecognizer implements IRecognizer {
 
   async reportError(captchaId: string): Promise<ReportErrorResult> {
     try {
-      logger.log("报告识别错误, captchaId:", captchaId);
       const result = await this.client.reportError(captchaId);
-      logger.log("报错成功:", result.result);
       return { success: true, message: result.result };
     } catch (error) {
       logger.error("报错失败:", error);
@@ -124,12 +118,7 @@ export class TTShituRecognizer implements IRecognizer {
 
   async capture(containerId: string): Promise<ScreenshotResult | null> {
     try {
-      logger.log("截图目标容器ID:", containerId);
       const result = await captureScreenshot(containerId);
-      logger.log("截图元素尺寸:", {
-        width: result.canvas.width,
-        height: result.canvas.height,
-      });
       logScreenshotPreview(result, 400, 300);
       return result;
     } catch (error) {

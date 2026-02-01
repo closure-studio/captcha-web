@@ -59,17 +59,6 @@ export class ClickRunner {
       const scaleFactorX = containerRect.width / canvasWidth;
       const scaleFactorY = containerRect.height / canvasHeight;
 
-      if (this.config.debug) {
-        logger.log("========== 点选调试信息 ==========");
-        logger.log("Canvas 尺寸:", { width: canvasWidth, height: canvasHeight });
-        logger.log("容器 DOM 尺寸:", {
-          width: containerRect.width,
-          height: containerRect.height,
-        });
-        logger.log("缩放比例:", { x: scaleFactorX, y: scaleFactorY });
-        logger.log("识别返回的坐标点:", points);
-        logger.log("=====================================");
-      }
 
       // 点击每个坐标点
       for (let i = 0; i < points.length; i++) {
@@ -81,18 +70,7 @@ export class ClickRunner {
         const clickX = currentRect.left + scaledX;
         const clickY = currentRect.top + scaledY;
 
-        if (this.config.debug) {
-          logger.log(`点击坐标 [${i + 1}/${points.length}]:`, {
-            original: point,
-            scaled: { x: scaledX, y: scaledY },
-            screen: { x: clickX, y: clickY },
-          });
-        }
-
         const elementAtPoint = this.getElementAtPoint(clickX, clickY);
-        if (this.config.debug) {
-          logger.log("点击位置的元素:", elementAtPoint?.className);
-        }
 
         await this.dispatchClickEvents(elementAtPoint, clickX, clickY);
 
@@ -100,9 +78,6 @@ export class ClickRunner {
         const { min, max } = this.config.delay;
         const delay =
           i === 0 ? max + 200 : min + Math.random() * (max - min);
-        if (this.config.debug) {
-          logger.log(`等待 ${Math.round(delay)}ms 后继续...`);
-        }
         await this.sleep(delay);
       }
 
@@ -169,7 +144,6 @@ export class ClickRunner {
       element?.className?.includes?.("geetest_click") ||
       element?.className?.includes?.("geetest_tip")
     ) {
-      logger.log("检测到点击标记元素，尝试穿透...");
       element.style.pointerEvents = "none";
       element = document.elementFromPoint(x, y) as HTMLElement | null;
     }
@@ -249,7 +223,6 @@ export class ClickRunner {
     for (const selector of COMMIT_BUTTON_SELECTORS) {
       button = container.querySelector<HTMLElement>(selector);
       if (button) {
-        logger.log("找到确认按钮 (容器内):", button.className);
         break;
       }
     }
@@ -263,7 +236,7 @@ export class ClickRunner {
     const x = rect.left + rect.width / 2;
     const y = rect.top + rect.height / 2;
 
-    logger.log("点击确认按钮:", { x, y });
+    logger.log("点击确认按钮");
     await this.dispatchClickEvents(button, x, y);
   }
 

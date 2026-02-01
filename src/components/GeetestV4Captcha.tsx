@@ -126,7 +126,7 @@ export function GeetestV4Captcha(props: GeetestV4CaptchaProps) {
     const result = captcha.getValidate();
     if (!result) return;
 
-    logger.log("GeeTest v4 前端验证成功:", result);
+    logger.log("GeeTest v4 验证成功");
 
     // Collect and Upload Data
     collector.setMetadata("solver", strategy.type);
@@ -159,7 +159,6 @@ export function GeetestV4Captcha(props: GeetestV4CaptchaProps) {
       if (refs.current.retryCount < maxRetryCount) {
         refs.current.retryCount += 1;
         const retryNum = refs.current.retryCount;
-        logger.log(`开始第 ${retryNum} 次重试...`);
         setStatus("retrying");
         setStatusMessage(
           `验证失败，正在重试 (${retryNum}/${maxRetryCount})...`,

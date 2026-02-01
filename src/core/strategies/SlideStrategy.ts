@@ -32,8 +32,6 @@ export class SlideStrategy implements ISolveStrategy {
     const { base64, canvas } = captureResult;
     collector.addCapture("original", base64);
 
-    logger.log(`${this.recognizer.name}: 开始识别验证码...`);
-
     // 2. Recognize
     const recognizeResult = await this.recognizer.recognize(
       { image: base64, type: CaptchaType.SLIDE },
@@ -51,12 +49,7 @@ export class SlideStrategy implements ISolveStrategy {
     }
 
     const xPosition = recognizeResult.points[0].x;
-    logger.log(
-      `${this.recognizer.name}: 识别成功, X坐标:`,
-      xPosition,
-      "ID:",
-      recognizeResult.captchaId,
-    );
+    logger.log(`${this.recognizer.name}: 识别成功, X坐标:`, xPosition);
 
     // 3. Draw Debug Overlay
     const markedCanvas = drawDebugOverlay(canvas, {
@@ -70,19 +63,10 @@ export class SlideStrategy implements ISolveStrategy {
     const elements = findGeeTestElements(container);
 
     if (!elements.sliderBtn || !elements.sliderTrack) {
-      logger.log(`${this.recognizer.name}: 滑块元素调试:`, {
-        sliderContainer: elements.sliderContainer?.className,
-        sliderBtn: elements.sliderBtn?.className,
-        sliderTrack: elements.sliderTrack?.className,
-      });
       throw new Error("未找到滑块按钮元素");
     }
 
     if (!elements.sliceElement || !elements.captchaWindow) {
-      logger.log(`${this.recognizer.name}: 拼图块元素调试:`, {
-        sliceElement: elements.sliceElement?.className,
-        captchaWindow: elements.captchaWindow?.className,
-      });
       throw new Error("未找到拼图块元素");
     }
 
@@ -105,7 +89,6 @@ export class SlideStrategy implements ISolveStrategy {
       );
     }
 
-    logger.log(`${this.recognizer.name}: 滑块 bypass 完成`);
     return { recognizeResult, bypassResult };
   }
 }

@@ -42,7 +42,7 @@ function App() {
   } = useCaptchaQueue({
     useMock: true,
     taskTimeout: 2 * 60 * 1000,
-    maxConcurrent: 4,
+    maxConcurrent: 1,
   });
 
   // 用 ref 保证 getActiveTaskCount 始终拿到最新值

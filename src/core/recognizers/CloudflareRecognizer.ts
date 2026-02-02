@@ -6,9 +6,9 @@ import {
   type ScreenshotResult,
 } from "../../utils/screenshot";
 import {
-  GeminiClient,
-  type GeminiClientOptions,
-} from "../../utils/captcha/gemini/client";
+  CloudflareClient,
+  type CloudflareClientOptions,
+} from "../../utils/captcha/cloudflare/client";
 import type {
   CaptchaCollector,
   IRecognizer,
@@ -17,7 +17,7 @@ import type {
   ReportErrorResult,
 } from "./types";
 
-const logger = createModuleLogger("Gemini Recognizer");
+const logger = createModuleLogger("Cloudflare Recognizer");
 
 /**
  * 图片裁剪配置
@@ -38,21 +38,21 @@ const DEFAULT_CLICK_CROP_CONFIG: ImageCropConfig = {
 };
 
 /**
- * Gemini 识别器
+ * Cloudflare 识别器
  * 支持滑块验证码和点选验证码，带图片预处理（裁剪高度）
  */
-export class GeminiRecognizer implements IRecognizer {
-  readonly name = "Gemini";
-  private client: GeminiClient;
+export class CloudflareRecognizer implements IRecognizer {
+  readonly name = "Cloudflare";
+  private client: CloudflareClient;
   private slideCropConfig: ImageCropConfig;
   private clickCropConfig: ImageCropConfig;
 
   constructor(
-    options?: GeminiClientOptions,
+    options?: CloudflareClientOptions,
     slideCropConfig?: Partial<ImageCropConfig>,
     clickCropConfig?: Partial<ImageCropConfig>,
   ) {
-    this.client = new GeminiClient(options);
+    this.client = new CloudflareClient(options);
     this.slideCropConfig = { ...DEFAULT_SLIDE_CROP_CONFIG, ...slideCropConfig };
     this.clickCropConfig = { ...DEFAULT_CLICK_CROP_CONFIG, ...clickCropConfig };
   }
@@ -120,7 +120,7 @@ export class GeminiRecognizer implements IRecognizer {
       croppedDimensions.height,
     );
 
-    // 调用 Gemini API 识别
+    // 调用 Cloudflare API 识别
     const result = await this.client.solveSlider(croppedImage);
 
     if (!result.success || !result.data || result.data.length === 0) {
@@ -172,7 +172,7 @@ export class GeminiRecognizer implements IRecognizer {
       croppedDimensions.height,
     );
 
-    // 调用 Gemini API 识别
+    // 调用 Cloudflare API 识别
     const result = await this.client.solveIcon(croppedImage);
 
     if (!result.success || !result.data || result.data.length === 0) {
@@ -201,7 +201,7 @@ export class GeminiRecognizer implements IRecognizer {
   }
 
   async reportError(): Promise<ReportErrorResult> {
-    return { success: false, message: "Gemini 不支持报错接口" };
+    return { success: false, message: "Cloudflare 不支持报错接口" };
   }
 
   async capture(containerId: string): Promise<ScreenshotResult | null> {

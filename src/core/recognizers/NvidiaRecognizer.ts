@@ -6,9 +6,9 @@ import {
   type ScreenshotResult,
 } from "../../utils/screenshot";
 import {
-  GeminiClient,
-  type GeminiClientOptions,
-} from "../../utils/captcha/gemini/client";
+  NvidiaClient,
+  type NvidiaClientOptions,
+} from "../../utils/captcha/nvidia/client";
 import type {
   CaptchaCollector,
   IRecognizer,
@@ -17,7 +17,7 @@ import type {
   ReportErrorResult,
 } from "./types";
 
-const logger = createModuleLogger("Gemini Recognizer");
+const logger = createModuleLogger("Nvidia Recognizer");
 
 /**
  * 图片裁剪配置
@@ -38,21 +38,21 @@ const DEFAULT_CLICK_CROP_CONFIG: ImageCropConfig = {
 };
 
 /**
- * Gemini 识别器
+ * Nvidia 识别器
  * 支持滑块验证码和点选验证码，带图片预处理（裁剪高度）
  */
-export class GeminiRecognizer implements IRecognizer {
-  readonly name = "Gemini";
-  private client: GeminiClient;
+export class NvidiaRecognizer implements IRecognizer {
+  readonly name = "Nvidia";
+  private client: NvidiaClient;
   private slideCropConfig: ImageCropConfig;
   private clickCropConfig: ImageCropConfig;
 
   constructor(
-    options?: GeminiClientOptions,
+    options?: NvidiaClientOptions,
     slideCropConfig?: Partial<ImageCropConfig>,
     clickCropConfig?: Partial<ImageCropConfig>,
   ) {
-    this.client = new GeminiClient(options);
+    this.client = new NvidiaClient(options);
     this.slideCropConfig = { ...DEFAULT_SLIDE_CROP_CONFIG, ...slideCropConfig };
     this.clickCropConfig = { ...DEFAULT_CLICK_CROP_CONFIG, ...clickCropConfig };
   }
@@ -120,7 +120,7 @@ export class GeminiRecognizer implements IRecognizer {
       croppedDimensions.height,
     );
 
-    // 调用 Gemini API 识别
+    // 调用 Nvidia API 识别
     const result = await this.client.solveSlider(croppedImage);
 
     if (!result.success || !result.data || result.data.length === 0) {
@@ -172,7 +172,7 @@ export class GeminiRecognizer implements IRecognizer {
       croppedDimensions.height,
     );
 
-    // 调用 Gemini API 识别
+    // 调用 Nvidia API 识别
     const result = await this.client.solveIcon(croppedImage);
 
     if (!result.success || !result.data || result.data.length === 0) {
@@ -201,7 +201,7 @@ export class GeminiRecognizer implements IRecognizer {
   }
 
   async reportError(): Promise<ReportErrorResult> {
-    return { success: false, message: "Gemini 不支持报错接口" };
+    return { success: false, message: "Nvidia 不支持报错接口" };
   }
 
   async capture(containerId: string): Promise<ScreenshotResult | null> {

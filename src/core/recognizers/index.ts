@@ -1,5 +1,7 @@
 export { TTShituRecognizer } from "./TTShituRecognizer";
 export { GeminiRecognizer } from "./GeminiRecognizer";
+export { NvidiaRecognizer } from "./NvidiaRecognizer";
+export { CloudflareRecognizer } from "./CloudflareRecognizer";
 export { AegirRecognizer } from "./AegirRecognizer";
 export type {
   IRecognizer,

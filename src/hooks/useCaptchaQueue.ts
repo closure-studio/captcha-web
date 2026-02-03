@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import type { CaptchaTask, CaptchaResultStatus, SubmitResultRequest } from "../types/api";
+import type {
+  CaptchaTask,
+  CaptchaResultStatus,
+} from "../types/api";
 import { captchaTaskApi } from "../utils/api/captchaTaskApi";
 import { createModuleLogger } from "../utils/logger";
 
@@ -27,13 +30,11 @@ export interface UseCaptchaQueueReturn {
   error: string | null;
   // 手动获取新任务
   fetchTasks: () => Promise<void>;
-  // 完成任务（成功或失败）
+  // 标记任务完成（只更新本地状态，不上报 API）
   completeTask: (
     containerId: string,
-    status: CaptchaResultStatus,
-    result?: Record<string, unknown>,
-    errorMessage?: string
-  ) => Promise<void>;
+    status: CaptchaResultStatus
+  ) => void;
   // 移除任务（不上报结果）
   removeTask: (containerId: string) => void;
   // 开始轮询
@@ -92,13 +93,11 @@ export function useCaptchaQueue(
     }
   }, []);
 
-  // 完成任务 - 使用 ref 来获取最新的 tasks
+  // 标记任务完成 - 只更新本地状态，API 上报在 GeetestV4Captcha 内完成
   const completeTask = useCallback(
-    async (
+    (
       containerId: string,
-      status: CaptchaResultStatus,
-      result?: Record<string, unknown>,
-      errorMessage?: string
+      status: CaptchaResultStatus
     ) => {
       const task = tasksRef.current.find((t) => t.containerId === containerId);
       if (!task) {
@@ -111,10 +110,6 @@ export function useCaptchaQueue(
         logger.warn(`任务已完成: ${containerId}`);
         return;
       }
-
-      // 计算耗时
-      const startTime = taskStartTimeRef.current.get(containerId);
-      const duration = startTime ? Date.now() - startTime : undefined;
 
       // 清除超时定时器
       clearTaskTimeout(containerId);
@@ -129,25 +124,7 @@ export function useCaptchaQueue(
         )
       );
 
-      // 上报结果到服务器
-      try {
-        const response = await captchaTaskApi.submitResult({
-          taskId: task.taskId,
-          containerId,
-          status,
-          result: result as SubmitResultRequest["result"],
-          errorMessage,
-          duration,
-        });
-
-        if (response.success) {
-          logger.info(`任务结果已上报: ${task.taskId}`);
-        } else {
-          logger.error(`任务结果上报失败: ${response.message}`);
-        }
-      } catch (err) {
-        logger.error("上报任务结果异常:", err);
-      }
+      logger.info(`任务本地状态已更新: ${task.taskId} (${status})`);
     },
     [clearTaskTimeout]
   );

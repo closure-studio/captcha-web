@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GeeTest4Config, GeeTest4Error, GeeTest4Instance } from "../types/geetest4";
-import type { CaptchaInfo } from "../types/type";
+import type { CaptchaTask, GeetestValidateResult } from "../types/api";
 import { loadGeeTestV4Script, autoClickCaptchaButton } from "../adapters/geetest";
 import type { ISolveStrategy } from "../core/strategies";
 import type { RecognizeResult, CaptchaCollector } from "../core/recognizers";
 import { captchaConfig } from "../core/config/captcha.config";
 import { uploadCaptchaData } from "../utils/captcha/upload";
+import { captchaTaskApi } from "../utils/api/captchaTaskApi";
 import { createModuleLogger } from "../utils/logger";
 import { generateContainerId, getErrorMessage } from "../utils/helpers";
 import {
@@ -21,9 +22,9 @@ const logger = createModuleLogger("GeetestV4Captcha");
 export type CaptchaStatus = "idle" | "solving" | "success" | "error" | "retrying";
 
 export interface GeetestV4CaptchaProps {
-  captchaInfo: CaptchaInfo;
+  task: CaptchaTask;  // 完整的任务（包含 taskId）
   strategy: ISolveStrategy;
-  onComplete?: () => void;
+  onComplete?: () => void;  // 简单回调，只通知完成
 }
 
 interface CaptchaRefs {
@@ -75,11 +76,12 @@ function useCaptchaCollector(): FullCaptchaCollector {
  * 合并了原来的 GeetestV4Slider, GeetestV4Icon, GeetestV4World
  */
 export function GeetestV4Captcha(props: GeetestV4CaptchaProps) {
-  const { captchaInfo, strategy, onComplete } = props;
+  const { task, strategy, onComplete } = props;
 
   // Refs
   const innerContainerId = useRef(generateContainerId());
   const containerRef = useRef<HTMLDivElement>(null);
+  const startTimeRef = useRef<number>(Date.now());
   const refs = useRef<CaptchaRefs>({
     captcha: null,
     recognitionId: null,
@@ -96,9 +98,44 @@ export function GeetestV4Captcha(props: GeetestV4CaptchaProps) {
   const collector = useCaptchaCollector();
   const { delays, maxRetryCount } = captchaConfig;
 
+  // 封装上报逻辑
+  const submitTaskResult = useCallback(
+    async (
+      resultStatus: "success" | "failed" | "error",
+      extra?: {
+        result?: GeetestValidateResult;
+        errorMessage?: string;
+      }
+    ) => {
+      const duration = Date.now() - startTimeRef.current;
+      try {
+        const response = await captchaTaskApi.submitResult({
+          taskId: task.taskId,
+          status: resultStatus,
+          duration,
+          result: extra?.result,
+          errorMessage: extra?.errorMessage,
+          challenge: task.challenge,
+          geetestId: task.geetestId,
+          provider: task.provider,
+          captchaType: task.type,
+          riskType: task.riskType,
+        });
+        if (response.success) {
+          logger.info(`任务结果已上报: ${task.taskId} (${resultStatus})`);
+        } else {
+          logger.error(`任务结果上报失败: ${response.message}`);
+        }
+      } catch (err) {
+        logger.error("上报任务结果异常:", err);
+      }
+    },
+    [task]
+  );
+
   // Auto solve
   const autoSolveCaptcha = useCallback(async (): Promise<string> => {
-    const parentContainer = document.getElementById(captchaInfo.containerId);
+    const parentContainer = document.getElementById(task.containerId);
     if (!parentContainer) throw new Error("未找到外部容器");
 
     collector.reset();
@@ -109,14 +146,14 @@ export function GeetestV4Captcha(props: GeetestV4CaptchaProps) {
     // Delegate solving to the strategy
     const solveResult = await strategy.solve({
       container: parentContainer,
-      containerId: captchaInfo.containerId,
+      containerId: task.containerId,
       collector,
     });
 
     // Save result
     refs.current.solveResult = solveResult.recognizeResult;
     return solveResult.recognizeResult.captchaId;
-  }, [captchaInfo.containerId, strategy, collector, delays.screenshot]);
+  }, [task.containerId, strategy, collector, delays.screenshot]);
 
   // Handle successful validation (Front-end)
   const handleSuccess = useCallback(async () => {
@@ -128,11 +165,14 @@ export function GeetestV4Captcha(props: GeetestV4CaptchaProps) {
 
     logger.log("GeeTest v4 验证成功");
 
+    // 上报结果到服务器
+    await submitTaskResult("success", { result });
+
     // Collect and Upload Data
     collector.setMetadata("solver", strategy.type);
-    collector.setMetadata("geetestId", captchaInfo.geetestId);
-    collector.setMetadata("challenge", captchaInfo.challenge);
-    collector.setMetadata("riskType", captchaInfo.riskType);
+    collector.setMetadata("geetestId", task.geetestId);
+    collector.setMetadata("challenge", task.challenge);
+    collector.setMetadata("riskType", task.riskType);
     collector.setMetadata("validateResult", result);
     if (refs.current.solveResult) {
       collector.setMetadata("solveResult", refs.current.solveResult);
@@ -140,15 +180,15 @@ export function GeetestV4Captcha(props: GeetestV4CaptchaProps) {
 
     uploadCaptchaData({
       ...collector.getArgs(),
-      captchaProvider: captchaInfo.provider,
-      captchaType: captchaInfo.type || "unknown",
-      containerId: captchaInfo.containerId,
+      captchaProvider: task.provider,
+      captchaType: task.type || "unknown",
+      containerId: task.containerId,
     });
 
     setStatus("success");
     setStatusMessage("验证成功");
     onComplete?.();
-  }, [captchaInfo, collector, onComplete, strategy.type]);
+  }, [task, collector, onComplete, strategy.type, submitTaskResult]);
 
   // Handle validation failure with retry logic
   const handleFail = useCallback(
@@ -173,27 +213,35 @@ export function GeetestV4Captcha(props: GeetestV4CaptchaProps) {
             logger.error("识别失败:", getErrorMessage(error, "识别失败"));
             setStatus("error");
             setStatusMessage(getErrorMessage(error, "识别失败"));
+            await submitTaskResult("error", {
+              errorMessage: getErrorMessage(error, "识别失败"),
+            });
             onComplete?.();
           }
         }, delays.retryWait);
       } else {
+        const errorMessage = err.msg || "已达最大重试次数";
         setStatus("error");
-        setStatusMessage(`验证失败: ${err.msg || "已达最大重试次数"}`);
+        setStatusMessage(`验证失败: ${errorMessage}`);
         refs.current.retryCount = 0;
+        await submitTaskResult("failed", { errorMessage });
         onComplete?.();
       }
     },
-    [autoSolveCaptcha, onComplete, maxRetryCount, delays.retryWait],
+    [autoSolveCaptcha, onComplete, maxRetryCount, delays.retryWait, submitTaskResult],
   );
 
   // Handle GeeTest error
   const handleError = useCallback(
-    (err: GeeTest4Error) => {
+    async (err: GeeTest4Error) => {
       logger.error("GeeTest v4 error:", err);
       setLoadError(err.msg || "Unknown error");
+      await submitTaskResult("error", {
+        errorMessage: err.msg || "Unknown error",
+      });
       onComplete?.();
     },
-    [onComplete],
+    [onComplete, submitTaskResult],
   );
 
   // Handle captcha ready
@@ -216,11 +264,14 @@ export function GeetestV4Captcha(props: GeetestV4CaptchaProps) {
           logger.error("识别失败:", getErrorMessage(error, "识别失败"));
           setStatus("error");
           setStatusMessage(getErrorMessage(error, "识别失败"));
+          await submitTaskResult("error", {
+            errorMessage: getErrorMessage(error, "识别失败"),
+          });
           onComplete?.();
         }
       }, delays.imageLoad);
     }, delays.autoClick);
-  }, [autoSolveCaptcha, onComplete, delays.autoClick, delays.imageLoad]);
+  }, [autoSolveCaptcha, onComplete, delays.autoClick, delays.imageLoad, submitTaskResult]);
 
   // Handle captcha close
   const handleClose = useCallback(() => {
@@ -259,8 +310,8 @@ export function GeetestV4Captcha(props: GeetestV4CaptchaProps) {
         }
 
         const config: GeeTest4Config = {
-          captchaId: captchaInfo.geetestId || "",
-          riskType: captchaInfo.riskType,
+          captchaId: task.geetestId || "",
+          riskType: task.riskType,
           product: "float",
           language: "zh-cn",
           onError: (err: GeeTest4Error) => handleErrorRef.current(err),
@@ -301,8 +352,7 @@ export function GeetestV4Captcha(props: GeetestV4CaptchaProps) {
         currentRefs.captcha = null;
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [captchaInfo.geetestId, captchaInfo.riskType]);
+  }, [task.geetestId, task.riskType]);
 
   const containerClassName = useMemo(
     () =>

@@ -41,8 +41,8 @@ function App() {
     activeTaskCount,
   } = useCaptchaQueue({
     useMock: true,
-    taskTimeout: 2 * 60 * 1000,
-    maxConcurrent: 1,
+    taskTimeout: 3 * 60 * 1000,
+    maxConcurrent: 8,
   });
 
   // 用 ref 保证 getActiveTaskCount 始终拿到最新值
@@ -59,6 +59,7 @@ function App() {
 
   const handleComplete = useCallback(
     (containerId: string) => {
+      // 只做本地状态标记，API 上报已在 GeetestV4Captcha 内完成
       completeTask(containerId, "success");
     },
     [completeTask],
@@ -84,15 +85,13 @@ function App() {
           onStopPolling={stopPolling}
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pt-2">
+        <div className="flex flex-wrap gap-1 pt-2 overflow-y-auto max-h-[calc(100vh-180px)]">
           {tasks.map((task) =>
-            task.completed ? (
-              <div key={task.containerId} />
-            ) : (
+            task.completed ? null : (
               <CaptchaSolver
                 key={task.containerId}
-                captchaInfo={task}
-                onComplete={handleComplete}
+                task={task}
+                onComplete={() => handleComplete(task.containerId)}
               />
             ),
           )}

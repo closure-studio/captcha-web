@@ -1,38 +1,38 @@
-import { type JSX, memo, useCallback, useMemo } from "react";
+import { type JSX, memo, useMemo } from "react";
 import { captchaConfig } from "../core/config/captcha.config";
-import { CaptchaType, NvidiaRecognizer } from "../core/recognizers";
+import { CaptchaType, GeminiRecognizer } from "../core/recognizers";
 import { ClickStrategy } from "../core/strategies/ClickStrategy";
 import { SlideStrategy } from "../core/strategies/SlideStrategy";
-import type { CaptchaInfo } from "../types/type";
+import type { CaptchaTask } from "../types/api";
 import { GeetestV4Captcha } from "./GeetestV4Captcha";
 
 interface CaptchaSolverProps {
-  captchaInfo: CaptchaInfo;
-  onComplete?: (containerId: string) => void;
+  task: CaptchaTask;
+  onComplete?: () => void;
 }
 
 /**
  * 统一验证码入口组件
- * 根据 captchaInfo 自动选择识别器和策略
+ * 根据 task 自动选择识别器和策略
  */
 export const CaptchaSolver = memo(function CaptchaSolver(
-  props: CaptchaSolverProps
+  props: CaptchaSolverProps,
 ): JSX.Element {
-  const { captchaInfo, onComplete } = props;
+  const { task, onComplete } = props;
 
   const strategy = useMemo(() => {
     const { slide, click } = captchaConfig;
 
-    if (captchaInfo.type === "word") {
-      const recognizer = new NvidiaRecognizer();
+    if (task.type === "word") {
+      const recognizer = new GeminiRecognizer();
       return new ClickStrategy(recognizer, CaptchaType.WORLD, {
         delay: { ...click.delay },
         debug: true,
       });
     }
 
-    if (captchaInfo.type === "icon") {
-      const recognizer = new NvidiaRecognizer();
+    if (task.type === "icon") {
+      const recognizer = new GeminiRecognizer();
       return new ClickStrategy(recognizer, CaptchaType.ICON, {
         delay: { ...click.delay },
         debug: true,
@@ -40,7 +40,7 @@ export const CaptchaSolver = memo(function CaptchaSolver(
     }
 
     // Default: slide with Gemini
-    const recognizer = new NvidiaRecognizer(undefined, {
+    const recognizer = new GeminiRecognizer(undefined, {
       ...slide.gemini.cropConfig,
     });
     return new SlideStrategy(recognizer, {
@@ -49,20 +49,16 @@ export const CaptchaSolver = memo(function CaptchaSolver(
       stepDelay: { min: 15, max: 25 },
       debug: true,
     });
-  }, [captchaInfo.type]);
-
-  const handleComplete = useCallback(() => {
-    onComplete?.(captchaInfo.containerId);
-  }, [onComplete, captchaInfo.containerId]);
+  }, [task.type]);
 
   const renderCaptchaComponent = () => {
-    switch (captchaInfo.provider) {
+    switch (task.provider) {
       case "geetest_v4":
         return (
           <GeetestV4Captcha
-            captchaInfo={captchaInfo}
+            task={task}
             strategy={strategy}
-            onComplete={handleComplete}
+            onComplete={onComplete}
           />
         );
       default:
@@ -72,7 +68,7 @@ export const CaptchaSolver = memo(function CaptchaSolver(
 
   return (
     <div
-      id={captchaInfo.containerId}
+      id={task.containerId}
       className="captcha-isolation-container w-[340px] h-[386px]"
     >
       {renderCaptchaComponent()}

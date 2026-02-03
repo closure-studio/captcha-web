@@ -1,4 +1,3 @@
-import axios from "axios";
 import type {
   CaptchaApiConfig,
   CaptchaTask,
@@ -7,13 +6,12 @@ import type {
   SubmitResultResponse,
 } from "../../types/api";
 import { generateContainerId } from "../helpers";
-import { createModuleLogger } from "../logger";
+import { captchaServerApi } from "./captchaServerApi";
 
-const logger = createModuleLogger("CaptchaTaskApi");
 
 // 默认配置
 const DEFAULT_CONFIG: CaptchaApiConfig = {
-  baseUrl: import.meta.env.VITE_TASK_API_URL || "http://localhost:8080/api",
+  baseUrl: import.meta.env.VITE_CAPTCHA_SERVER_HOST || "http://localhost:8787",
   pollInterval: 5000,
   maxConcurrent: 4,
   useMock: import.meta.env.DEV, // 开发环境默认使用mock
@@ -40,16 +38,6 @@ function generateMockTasks(): CaptchaTask[] {
       type: "word",
     },
   ];
-  // const types: Array<"slide" | "word" | "icon"> = ["slide", "word", "icon"];
-  // return Array.from({ length: count }, (_, i) => ({
-  //   taskId: `mock-task-${Date.now()}-${i}`,
-  //   containerId: generateContainerId(),
-  //   challenge: `mock-challenge-${Date.now()}-${i}`,
-  //   geetestId: CAPTCHA_ID,
-  //   provider: "geetest_v4" as const,
-  //   type: types[i % types.length],
-  //   createdAt: Date.now(),
-  // }));
 }
 
 // 模拟网络延迟
@@ -62,6 +50,8 @@ class CaptchaTaskApi {
 
   constructor(config: Partial<CaptchaApiConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
+    // 同步基础 URL 到 captchaServerApi
+    captchaServerApi.updateBaseUrl(this.config.baseUrl);
   }
 
   // 获取待处理的验证码任务
@@ -70,23 +60,7 @@ class CaptchaTaskApi {
       return this.mockFetchTasks();
     }
 
-    try {
-      const response = await axios.get<{ tasks: CaptchaTask[] }>(
-        `${this.config.baseUrl}/tasks`,
-      );
-
-      return {
-        success: true,
-        data: response.data.tasks || [],
-      };
-    } catch (error) {
-      logger.error("获取任务失败:", error);
-      return {
-        success: false,
-        data: [],
-        message: axios.isAxiosError(error) ? error.message : "Unknown error",
-      };
-    }
+    return captchaServerApi.fetchTasks();
   }
 
   // Mock获取任务
@@ -102,41 +76,16 @@ class CaptchaTaskApi {
   async submitResult(
     request: SubmitResultRequest,
   ): Promise<SubmitResultResponse> {
-    if (this.config.useMock) {
-      return this.mockSubmitResult(request);
-    }
-
-    try {
-      const response = await axios.post<SubmitResultResponse>(
-        `${this.config.baseUrl}/tasks/${request.taskId}/result`,
-        request,
-      );
-
-      return response.data;
-    } catch (error) {
-      logger.error("提交结果失败:", error);
-      return {
-        success: false,
-        message: axios.isAxiosError(error) ? error.message : "Unknown error",
-      };
-    }
-  }
-
-  // Mock提交结果
-  private async mockSubmitResult(
-    _request: SubmitResultRequest,
-  ): Promise<SubmitResultResponse> {
-    await delay(200); // 模拟网络延迟
-    logger.info("Mock 提交结果:", _request);
-    return {
-      success: true,
-      message: "Mock result submitted successfully",
-    };
+    return captchaServerApi.submitResult(request);
   }
 
   // 更新配置
   updateConfig(config: Partial<CaptchaApiConfig>): void {
     this.config = { ...this.config, ...config };
+    // 同步基础 URL
+    if (config.baseUrl) {
+      captchaServerApi.updateBaseUrl(config.baseUrl);
+    }
   }
 
   // 获取当前配置

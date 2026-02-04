@@ -5,7 +5,6 @@ import type {
   SubmitResultRequest,
   SubmitResultResponse,
 } from "../../types/api";
-import { generateContainerId } from "../helpers";
 import { captchaServerApi } from "./captchaServerApi";
 
 
@@ -19,18 +18,11 @@ const DEFAULT_CONFIG: CaptchaApiConfig = {
 
 // Mock数据生成器
 function generateMockTasks(): CaptchaTask[] {
+  const taskId = crypto.randomUUID();
   return [
-    // {
-    //   taskId: generateContainerId(),
-    //   containerId: generateContainerId(),
-    //   challenge: "1",
-    //   geetestId: CAPTCHA_ID,
-    //   provider: "geetest_v4",
-    //   type: "slide",
-    // },
     {
-      taskId: generateContainerId(),
-      containerId: generateContainerId(),
+      taskId,
+      containerId: taskId, // containerId 等于 taskId
       challenge: "122ca1ba-0101-4b26-9842-63c0a1424cc2",
       geetestId: "54088bb07d2df3c46b79f80300b0abbe",
       provider: "geetest_v4",

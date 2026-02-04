@@ -2,11 +2,19 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import type {
   CaptchaTask,
   CaptchaResultStatus,
+  TaskQueue,
+  TaskSlot,
 } from "../types/api";
+import { TASK_QUEUE_LENGTH } from "../types/api";
 import { captchaTaskApi } from "../utils/api/captchaTaskApi";
 import { createModuleLogger } from "../utils/logger";
 
 const logger = createModuleLogger("useCaptchaQueue");
+
+// 创建固定长度的空任务队列
+function createEmptyTaskQueue(): TaskQueue {
+  return Array(TASK_QUEUE_LENGTH).fill(null) as TaskQueue;
+}
 
 export interface UseCaptchaQueueOptions {
   // 是否自动轮询获取新任务
@@ -15,15 +23,15 @@ export interface UseCaptchaQueueOptions {
   pollInterval?: number;
   // 单个任务超时时间（毫秒）
   taskTimeout?: number;
-  // 最大并发任务数
+  // 最大并发任务数（不超过 TASK_QUEUE_LENGTH）
   maxConcurrent?: number;
   // 是否使用mock数据
   useMock?: boolean;
 }
 
 export interface UseCaptchaQueueReturn {
-  // 当前任务列表
-  tasks: CaptchaTask[];
+  // 当前任务队列（固定长度 16）
+  tasks: TaskQueue;
   // 是否正在加载
   isLoading: boolean;
   // 错误信息
@@ -35,7 +43,7 @@ export interface UseCaptchaQueueReturn {
     containerId: string,
     status: CaptchaResultStatus
   ) => void;
-  // 移除任务（不上报结果）
+  // 移除任务（设为 null）
   removeTask: (containerId: string) => void;
   // 开始轮询
   startPolling: () => void;
@@ -51,19 +59,21 @@ const DEFAULT_OPTIONS: Required<UseCaptchaQueueOptions> = {
   autoFetch: true, // 默认自动轮询
   pollInterval: 10000, // 10秒轮询一次
   taskTimeout: 2 * 60 * 1000, // 2分钟超时
-  maxConcurrent: 4,
+  maxConcurrent: TASK_QUEUE_LENGTH, // 默认最大为队列长度
   useMock: true, // 开发阶段默认使用mock
 };
 
-// 已完成任务保留时间（毫秒），超过后清理以释放内存
+// 已完成任务保留时间（毫秒），超过后清理以释放槽位
 const COMPLETED_TASK_RETENTION_MS = 30 * 1000; // 30秒
 
 export function useCaptchaQueue(
   options: UseCaptchaQueueOptions = {}
 ): UseCaptchaQueueReturn {
   const opts = { ...DEFAULT_OPTIONS, ...options };
+  // 确保 maxConcurrent 不超过队列长度
+  const maxConcurrent = Math.min(opts.maxConcurrent, TASK_QUEUE_LENGTH);
 
-  const [tasks, setTasks] = useState<CaptchaTask[]>([]);
+  const [tasks, setTasks] = useState<TaskQueue>(createEmptyTaskQueue);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPolling, setIsPolling] = useState(false);
@@ -99,7 +109,7 @@ export function useCaptchaQueue(
       containerId: string,
       status: CaptchaResultStatus
     ) => {
-      const task = tasksRef.current.find((t) => t.containerId === containerId);
+      const task = tasksRef.current.find((t): t is CaptchaTask => t !== null && t.containerId === containerId);
       if (!task) {
         logger.warn(`找不到任务: ${containerId}`);
         return;
@@ -120,8 +130,8 @@ export function useCaptchaQueue(
       taskCompletedTimeRef.current.set(containerId, completedTime);
       setTasks((prev) =>
         prev.map((t) =>
-          t.containerId === containerId ? { ...t, completed: true } : t
-        )
+          t !== null && t.containerId === containerId ? { ...t, completed: true } : t
+        ) as TaskQueue
       );
 
       logger.info(`任务本地状态已更新: ${task.taskId} (${status})`);
@@ -152,11 +162,13 @@ export function useCaptchaQueue(
 
   // 获取新任务
   const fetchTasks = useCallback(async () => {
-    // 计算活跃任务数（不包括已完成的）
-    const activeTaskCount = tasksRef.current.filter((t) => !t.completed).length;
+    // 计算活跃任务数（非 null 且未完成）
+    const activeTaskCount = tasksRef.current.filter(
+      (t): t is CaptchaTask => t !== null && !t.completed
+    ).length;
 
     // 如果已达到最大并发数，不再获取新任务
-    if (activeTaskCount >= opts.maxConcurrent) {
+    if (activeTaskCount >= maxConcurrent) {
       return;
     }
 
@@ -167,28 +179,43 @@ export function useCaptchaQueue(
       const response = await captchaTaskApi.fetchTasks();
 
       if (response.success) {
-        const newTasks = response.data;
+        const newTasks = response.data || [];
         if (newTasks.length > 0) {
           setTasks((prev) => {
+            // 获取已存在的活跃任务 ID
+            const existingIds = new Set(
+              prev
+                .filter((t): t is CaptchaTask => t !== null && !t.completed)
+                .map((t) => t.taskId)
+            );
             // 过滤掉已存在的任务
-            const existingIds = new Set(prev.filter((t) => !t.completed).map((t) => t.taskId));
             const uniqueNewTasks = newTasks.filter((t) => !existingIds.has(t.taskId));
 
-            // 限制总数不超过maxConcurrent
-            const activeCount = prev.filter((t) => !t.completed).length;
-            const availableSlots = opts.maxConcurrent - activeCount;
-            const tasksToAdd = [...uniqueNewTasks.slice(0, availableSlots)];
+            if (uniqueNewTasks.length === 0) {
+              return prev;
+            }
 
-            // 用新任务就地替换已完成的槽位，保持其他任务位置不变
-            const result = prev.map((t) => {
-              if (t.completed && tasksToAdd.length > 0) {
-                return tasksToAdd.shift()!;
+            // 从头开始遍历，找空槽位（null 或 completed）填入新任务
+            const result = [...prev] as TaskSlot[];
+            let taskIndex = 0;
+
+            for (let i = 0; i < TASK_QUEUE_LENGTH && taskIndex < uniqueNewTasks.length; i++) {
+              const slot = result[i];
+              // 槽位为空或任务已完成，可以放入新任务
+              if (slot === null || slot.completed) {
+                // 检查是否超过最大并发数
+                const currentActive = result.filter(
+                  (t): t is CaptchaTask => t !== null && !t.completed
+                ).length;
+                if (currentActive >= maxConcurrent) {
+                  break;
+                }
+                result[i] = uniqueNewTasks[taskIndex];
+                taskIndex++;
               }
-              return t;
-            });
+            }
 
-            // 剩余的新任务追加到末尾
-            return [...result, ...tasksToAdd];
+            return result as TaskQueue;
           });
         }
       } else {
@@ -201,14 +228,18 @@ export function useCaptchaQueue(
     } finally {
       setIsLoading(false);
     }
-  }, [opts.maxConcurrent]);
+  }, [maxConcurrent]);
 
-  // 移除任务（不上报结果）
+  // 移除任务（设为 null）
   const removeTask = useCallback(
     (containerId: string) => {
       clearTaskTimeout(containerId);
       taskStartTimeRef.current.delete(containerId);
-      setTasks((prev) => prev.filter((t) => t.containerId !== containerId));
+      setTasks((prev) =>
+        prev.map((t) =>
+          t !== null && t.containerId === containerId ? null : t
+        ) as TaskQueue
+      );
     },
     [clearTaskTimeout]
   );
@@ -244,20 +275,23 @@ export function useCaptchaQueue(
   // 监听任务列表变化，为新任务设置超时
   useEffect(() => {
     tasks.forEach((task) => {
-      setTaskTimeout(task.containerId);
+      if (task !== null && !task.completed) {
+        setTaskTimeout(task.containerId);
+      }
     });
 
     // 清理已移除任务的定时器
     const currentTimeoutMap = timeoutMapRef.current;
     currentTimeoutMap.forEach((_, containerId) => {
-      if (!tasks.some((t) => t.containerId === containerId)) {
+      const exists = tasks.some((t) => t !== null && t.containerId === containerId);
+      if (!exists) {
         clearTaskTimeout(containerId);
         taskStartTimeRef.current.delete(containerId);
       }
     });
   }, [tasks, setTaskTimeout, clearTaskTimeout]);
 
-  // 定期清理已完成的任务以释放内存
+  // 定期清理已完成的任务（设为 null 以释放槽位）
   useEffect(() => {
     const cleanupInterval = window.setInterval(() => {
       const now = Date.now();
@@ -271,8 +305,12 @@ export function useCaptchaQueue(
       });
 
       if (tasksToRemove.length > 0) {
-        // 从任务列表中移除已过期的已完成任务
-        setTasks((prev) => prev.filter((t) => !tasksToRemove.includes(t.containerId)));
+        // 将已过期的已完成任务设为 null
+        setTasks((prev) =>
+          prev.map((t) =>
+            t !== null && tasksToRemove.includes(t.containerId) ? null : t
+          ) as TaskQueue
+        );
         // 清理完成时间记录
         tasksToRemove.forEach((id) => completedTimeMap.delete(id));
         logger.info(`清理了 ${tasksToRemove.length} 个已完成的任务`);
@@ -322,6 +360,6 @@ export function useCaptchaQueue(
     startPolling,
     stopPolling,
     isPolling,
-    activeTaskCount: tasks.filter((t) => !t.completed).length,
+    activeTaskCount: tasks.filter((t): t is CaptchaTask => t !== null && !t.completed).length,
   };
 }

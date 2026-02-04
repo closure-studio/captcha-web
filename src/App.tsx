@@ -12,6 +12,18 @@ const AUTO_REFRESH_INTERVAL = 1 * 60 * 60 * 1000;
 // 等待任务完成的最大时间（毫秒）- 5分钟
 const MAX_WAIT_TIME = 5 * 60 * 1000;
 
+// 空槽位占位组件
+function EmptySlot({ index }: { index: number }) {
+  return (
+    <div
+      className="captcha-isolation-container w-[340px] h-[386px] bg-slate-100 border border-dashed border-slate-300 rounded-lg flex items-center justify-center"
+      data-slot-index={index}
+    >
+      <span className="text-slate-400 text-sm">空槽位 {index + 1}</span>
+    </div>
+  );
+}
+
 interface RefreshBannerProps {
   activeTaskCount: number;
 }
@@ -86,15 +98,20 @@ function App() {
         />
 
         <div className="flex flex-wrap gap-1 pt-2 overflow-y-auto max-h-[calc(100vh-180px)]">
-          {tasks.map((task) =>
-            task.completed ? null : (
+          {tasks.map((task, index) => {
+            // 空槽位或已完成的任务显示占位组件
+            if (task === null || task.completed) {
+              return <EmptySlot key={`empty-${index}`} index={index} />;
+            }
+            // 有效任务显示 CaptchaSolver
+            return (
               <CaptchaSolver
                 key={task.containerId}
                 task={task}
                 onComplete={() => handleComplete(task.containerId)}
               />
-            ),
-          )}
+            );
+          })}
         </div>
       </div>
     </AutoRefreshProvider>

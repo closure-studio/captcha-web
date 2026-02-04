@@ -1,6 +1,9 @@
 import { type JSX, memo, useMemo } from "react";
 import { captchaConfig } from "../core/config/captcha.config";
-import { CaptchaType, GeminiRecognizer } from "../core/recognizers";
+import {
+  CaptchaType,
+  NvidiaRecognizer
+} from "../core/recognizers";
 import { ClickStrategy } from "../core/strategies/ClickStrategy";
 import { SlideStrategy } from "../core/strategies/SlideStrategy";
 import type { CaptchaTask } from "../types/api";
@@ -24,7 +27,7 @@ export const CaptchaSolver = memo(function CaptchaSolver(
     const { slide, click } = captchaConfig;
 
     if (task.type === "word") {
-      const recognizer = new GeminiRecognizer();
+      const recognizer = new NvidiaRecognizer();
       return new ClickStrategy(recognizer, CaptchaType.WORLD, {
         delay: { ...click.delay },
         debug: true,
@@ -32,7 +35,7 @@ export const CaptchaSolver = memo(function CaptchaSolver(
     }
 
     if (task.type === "icon") {
-      const recognizer = new GeminiRecognizer();
+      const recognizer = new NvidiaRecognizer();
       return new ClickStrategy(recognizer, CaptchaType.ICON, {
         delay: { ...click.delay },
         debug: true,
@@ -40,7 +43,7 @@ export const CaptchaSolver = memo(function CaptchaSolver(
     }
 
     // Default: slide with Gemini
-    const recognizer = new GeminiRecognizer(undefined, {
+    const recognizer = new NvidiaRecognizer(undefined, {
       ...slide.gemini.cropConfig,
     });
     return new SlideStrategy(recognizer, {

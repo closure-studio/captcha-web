@@ -2,6 +2,14 @@ import type { CaptchaInfo } from "./type";
 
 // ============ 基础类型 ============
 
+// 通用 API 响应格式
+export interface ApiResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  message?: string;
+  error?: string;
+}
+
 // 任务状态
 export type TaskStatus = "pending" | "success" | "failed" | "timeout" | "error";
 
@@ -12,7 +20,12 @@ export type CaptchaType = "slide" | "word" | "icon";
 export type Provider = "geetest_v4" | "geetest_v3";
 
 // 识别器名称
-export type RecognizerName = "TTShitu" | "Gemini" | "Aegir" | "Cloudflare" | "Nvidia";
+export type RecognizerName =
+  | "TTShitu"
+  | "Gemini"
+  | "Aegir"
+  | "Cloudflare"
+  | "Nvidia";
 
 // Bypass 类型
 export type BypassType = "slide" | "click";
@@ -28,36 +41,33 @@ export interface Point {
 
 // ============ 任务相关 ============
 
-// 从服务器获取的任务
+// 任务队列固定长度
+export const TASK_QUEUE_LENGTH = 16;
+
+// 从服务器获取的任务（扩展 CaptchaInfo）
 export interface CaptchaTask extends CaptchaInfo {
-  taskId: string; // 服务器分配的任务ID
-  createdAt?: number; // 任务创建时间戳
+  taskId: string; // 本地生成的 UUID（服务器不返回 taskId）
+  containerId: string; // 等于 taskId，用于 DOM 容器 ID
+  createdAt?: number; // 任务创建时间戳（映射自上游 created 字段）
   completed?: boolean; // 本地标记：任务是否已完成
 }
 
-// 创建任务请求
-export interface CreateTaskRequest {
-  challenge: string;
-  provider: Provider;
-  geetestId?: string;
-  captchaType?: CaptchaType;
-  riskType?: string;
-}
+// 任务槽位类型：可以是任务或空槽位
+export type TaskSlot = CaptchaTask | null;
 
-// 创建任务响应
-export interface CreateTaskResponse {
-  success: boolean;
-  taskId?: string;
-  message?: string;
-  error?: string;
-}
+// 固定长度的任务队列类型
+export type TaskQueue = [
+  TaskSlot, TaskSlot, TaskSlot, TaskSlot,
+  TaskSlot, TaskSlot, TaskSlot, TaskSlot,
+  TaskSlot, TaskSlot, TaskSlot, TaskSlot,
+  TaskSlot, TaskSlot, TaskSlot, TaskSlot,
+];
 
-// 获取任务列表的响应
-export interface FetchTasksResponse {
-  success: boolean;
-  data: CaptchaTask[];
-  message?: string;
-}
+// 获取任务列表的响应（使用统一的 ApiResponse 格式）
+export type FetchTasksResponse = ApiResponse<CaptchaTask[]>;
+
+// 上传验证结果的响应（使用统一的 ApiResponse 格式）
+export type SubmitResultResponse = ApiResponse<null>;
 
 // ============ 识别记录 ============
 
@@ -100,16 +110,20 @@ export type CaptchaResultStatus = TaskStatus;
 
 // GeeTest 验证成功凭证
 export interface GeetestValidateResult {
+  // V4 字段
   lot_number?: string;
   captcha_output?: string;
   pass_token?: string;
   gen_time?: string;
+  // V3 字段
+  geetest_challenge?: string;
+  geetest_validate?: string;
+  geetest_seccode?: string;
 }
 
 // 上传验证结果的请求
 export interface SubmitResultRequest {
   taskId: string;
-  containerId?: string; // 本地使用，不发送到服务器
   status: CaptchaResultStatus;
   result?: GeetestValidateResult;
   duration?: number;
@@ -125,13 +139,6 @@ export interface SubmitResultRequest {
   provider?: Provider;
   captchaType?: CaptchaType;
   riskType?: string;
-}
-
-// 上传验证结果的响应
-export interface SubmitResultResponse {
-  success: boolean;
-  message?: string;
-  error?: string;
 }
 
 // ============ 统计相关 ============
@@ -201,13 +208,4 @@ export interface CaptchaApiConfig {
   pollInterval?: number; // 轮询间隔（毫秒）
   maxConcurrent?: number; // 最大并发数
   useMock?: boolean; // 是否使用mock数据
-}
-
-// ============ 通用响应 ============
-
-export interface ApiResponse<T = unknown> {
-  success: boolean;
-  data?: T;
-  message?: string;
-  error?: string;
 }

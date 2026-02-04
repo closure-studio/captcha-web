@@ -207,5 +207,4 @@ export interface CaptchaApiConfig {
   baseUrl: string;
   pollInterval?: number; // 轮询间隔（毫秒）
   maxConcurrent?: number; // 最大并发数
-  useMock?: boolean; // 是否使用mock数据
 }

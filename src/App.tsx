@@ -52,7 +52,6 @@ function App() {
     isPolling,
     activeTaskCount,
   } = useCaptchaQueue({
-    useMock: true,
     taskTimeout: 3 * 60 * 1000,
     maxConcurrent: 8,
   });

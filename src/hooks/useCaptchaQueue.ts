@@ -25,8 +25,6 @@ export interface UseCaptchaQueueOptions {
   taskTimeout?: number;
   // 最大并发任务数（不超过 TASK_QUEUE_LENGTH）
   maxConcurrent?: number;
-  // 是否使用mock数据
-  useMock?: boolean;
 }
 
 export interface UseCaptchaQueueReturn {
@@ -60,7 +58,6 @@ const DEFAULT_OPTIONS: Required<UseCaptchaQueueOptions> = {
   pollInterval: 10000, // 10秒轮询一次
   taskTimeout: 2 * 60 * 1000, // 2分钟超时
   maxConcurrent: TASK_QUEUE_LENGTH, // 默认最大为队列长度
-  useMock: true, // 开发阶段默认使用mock
 };
 
 // 已完成任务保留时间（毫秒），超过后清理以释放槽位
@@ -88,11 +85,6 @@ export function useCaptchaQueue(
   // 使用 ref 保存 tasks 以避免 stale closure
   const tasksRef = useRef(tasks);
   tasksRef.current = tasks;
-
-  // 更新API配置
-  useEffect(() => {
-    captchaTaskApi.updateConfig({ useMock: opts.useMock });
-  }, [opts.useMock]);
 
   // 清除任务超时
   const clearTaskTimeout = useCallback((containerId: string) => {

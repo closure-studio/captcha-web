@@ -7,6 +7,7 @@ import type { RecognizeResult, CaptchaCollector } from "../core/recognizers";
 import { captchaConfig } from "../core/config/captcha.config";
 import { uploadCaptchaData } from "../utils/captcha/upload";
 import { captchaTaskApi } from "../utils/api/captchaTaskApi";
+import { recordCaptchaResult } from "../utils/captchaStats";
 import { createModuleLogger } from "../utils/logger";
 import { generateContainerId, getErrorMessage } from "../utils/helpers";
 import {
@@ -108,6 +109,10 @@ export function GeetestV4Captcha(props: GeetestV4CaptchaProps) {
       }
     ) => {
       const duration = Date.now() - startTimeRef.current;
+
+      // 记录统计数据
+      recordCaptchaResult(resultStatus, duration);
+
       try {
         const response = await captchaTaskApi.submitResult({
           taskId: task.taskId,

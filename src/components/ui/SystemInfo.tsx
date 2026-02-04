@@ -10,6 +10,11 @@ import {
   subscribe,
   type ProviderStatsEntry,
 } from "../../utils/providerStats";
+import {
+  getCaptchaStats,
+  subscribeCaptchaStats,
+  type CaptchaStatsData,
+} from "../../utils/captchaStats";
 
 declare const __APP_VERSION__: string;
 
@@ -108,6 +113,8 @@ export function SystemInfo() {
   const [loggingOn, setLoggingOn] = useState(isLoggingEnabled);
   const [providerStats, setProviderStats] =
     useState<ProviderStatsEntry[]>(getProviderStats);
+  const [captchaStats, setCaptchaStats] =
+    useState<CaptchaStatsData>(getCaptchaStats);
 
   const handleLoggingToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
     const checked = e.target.checked;
@@ -130,6 +137,11 @@ export function SystemInfo() {
   // 订阅 provider stats 更新
   useEffect(() => {
     return subscribe(() => setProviderStats(getProviderStats()));
+  }, []);
+
+  // 订阅 captcha stats 更新
+  useEffect(() => {
+    return subscribeCaptchaStats(() => setCaptchaStats(getCaptchaStats()));
   }, []);
 
   const items: string[] = [
@@ -195,6 +207,44 @@ export function SystemInfo() {
             </span>
           </span>
         ))}
+      </div>
+      {/* 第三行：Captcha Stats */}
+      <div className="flex items-center gap-3 py-1.5 border-t border-slate-700">
+        <span className="font-semibold text-white">Captcha</span>
+        <span className="text-slate-600">|</span>
+        <span>
+          总计 <span className="text-white">{captchaStats.total}</span>
+        </span>
+        <span className="text-slate-600">|</span>
+        <span>
+          成功 <span className="text-green-400">{captchaStats.success}</span>
+        </span>
+        <span className="text-slate-600">|</span>
+        <span>
+          失败 <span className="text-red-400">{captchaStats.failed}</span>
+        </span>
+        <span className="text-slate-600">|</span>
+        <span>
+          超时 <span className="text-yellow-400">{captchaStats.timeout}</span>
+        </span>
+        <span className="text-slate-600">|</span>
+        <span>
+          错误 <span className="text-orange-400">{captchaStats.error}</span>
+        </span>
+        <span className="text-slate-600">|</span>
+        <span>
+          成功率{" "}
+          <span className={captchaStats.total > 0 ? (captchaStats.success / captchaStats.total >= 0.8 ? "text-green-400" : captchaStats.success / captchaStats.total >= 0.5 ? "text-yellow-400" : "text-red-400") : "text-slate-500"}>
+            {captchaStats.total > 0 ? `${((captchaStats.success / captchaStats.total) * 100).toFixed(1)}%` : "-"}
+          </span>
+        </span>
+        <span className="text-slate-600">|</span>
+        <span>
+          平均耗时{" "}
+          <span className="text-blue-400">
+            {captchaStats.avgDuration > 0 ? formatTime(captchaStats.avgDuration) : "-"}
+          </span>
+        </span>
       </div>
     </div>
   );

@@ -7,6 +7,7 @@ import type {
 } from "../types/api";
 import { TASK_QUEUE_LENGTH } from "../types/api";
 import { captchaTaskApi } from "../utils/api/captchaTaskApi";
+import { recordCaptchaResult } from "../utils/captchaStats";
 import { createModuleLogger } from "../utils/logger";
 
 const logger = createModuleLogger("useCaptchaQueue");
@@ -140,10 +141,46 @@ export function useCaptchaQueue(
     (containerId: string) => {
       if (timeoutMapRef.current.has(containerId)) return;
 
-      const timeout = window.setTimeout(() => {
+      const timeout = window.setTimeout(async () => {
         logger.warn(`任务超时: ${containerId}`);
-        // 超时时自动完成任务
+
+        // 获取任务信息用于上报
+        const task = tasksRef.current.find(
+          (t): t is CaptchaTask => t !== null && t.containerId === containerId
+        );
+
+        // 超时时自动完成任务（本地状态）
         completeTaskRef.current(containerId, "timeout");
+
+        // 上报超时结果到服务器
+        if (task) {
+          const startTime = taskStartTimeRef.current.get(containerId);
+          const duration = startTime ? Date.now() - startTime : opts.taskTimeout;
+
+          // 记录统计数据
+          recordCaptchaResult("timeout", duration);
+
+          try {
+            const response = await captchaTaskApi.submitResult({
+              taskId: task.taskId,
+              status: "timeout",
+              duration,
+              errorMessage: "任务超时",
+              challenge: task.challenge,
+              geetestId: task.geetestId,
+              provider: task.provider,
+              captchaType: task.type,
+              riskType: task.riskType,
+            });
+            if (response.success) {
+              logger.info(`超时任务已上报: ${task.taskId}`);
+            } else {
+              logger.error(`超时任务上报失败: ${response.message}`);
+            }
+          } catch (err) {
+            logger.error("上报超时任务异常:", err);
+          }
+        }
       }, opts.taskTimeout);
 
       timeoutMapRef.current.set(containerId, timeout);

@@ -7,8 +7,8 @@ const logger = createModuleLogger("TTShitu Client");
 const TTSHITU_API_URL = "http://api.ttshitu.com";
 
 // TTShitu 账号信息
-const TTSHITU_USERNAME = import.meta.env.VITE_TTSHITU_USERNAME || "";
-const TTSHITU_PASSWORD = import.meta.env.VITE_TTSHITU_PASSWORD || "";
+const TTSHITU_USERNAME = "";
+const TTSHITU_PASSWORD = "";
 
 /**
  * TTShitu 验证码类型

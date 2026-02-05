@@ -16,7 +16,7 @@ const MAX_WAIT_TIME = 5 * 60 * 1000;
 function EmptySlot({ index }: { index: number }) {
   return (
     <div
-      className="captcha-isolation-container w-[340px] h-[386px] bg-slate-100 border border-dashed border-slate-300 rounded-lg flex items-center justify-center"
+      className="captcha-isolation-container w-[340px] h-[386px] bg-slate-200 border border-dashed border-slate-300 rounded-lg flex items-center justify-center"
       data-slot-index={index}
     >
       <span className="text-slate-400 text-sm">空槽位 {index + 1}</span>
@@ -96,7 +96,7 @@ function App() {
           onStopPolling={stopPolling}
         />
 
-        <div className="flex flex-wrap gap-x-4 gap-y-4 mt-16 overflow-y-auto">
+        <div className="flex flex-wrap gap-x-4 gap-y-8 mt-16 overflow-y-auto">
           {tasks.map((task, index) => {
             // 空槽位或已完成的任务显示占位组件
             if (task === null || task.completed) {

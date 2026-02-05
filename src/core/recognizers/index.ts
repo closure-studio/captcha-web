@@ -9,7 +9,6 @@ export type {
   RecognizeResult,
   ReportErrorResult,
   CaptchaCollector,
-  CaptchaTypeValue,
   Point,
 } from "./types";
-export { RecognizeCode, CaptchaType } from "./types";
+export { RecognizeCode } from "./types";

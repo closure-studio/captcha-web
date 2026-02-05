@@ -1,3 +1,4 @@
+import type { CaptchaType } from "../../types/api";
 import type { ScreenshotResult } from "../../utils/screenshot";
 
 /**
@@ -10,17 +11,6 @@ export const RecognizeCode = {
 
 export type RecognizeCodeValue =
   (typeof RecognizeCode)[keyof typeof RecognizeCode];
-
-/**
- * 验证码类型
- */
-export const CaptchaType = {
-  SLIDE: "slide",
-  WORLD: "world",
-  ICON: "icon",
-} as const;
-
-export type CaptchaTypeValue = (typeof CaptchaType)[keyof typeof CaptchaType];
 
 /**
  * 坐标点
@@ -43,7 +33,7 @@ export interface CaptchaCollector {
  */
 export interface RecognizeRequest {
   image: string;
-  type: CaptchaTypeValue;
+  type: CaptchaType;
   backgroundImage?: string;
 }
 

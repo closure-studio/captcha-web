@@ -6,6 +6,7 @@ import { TaskControls } from "./components/ui/TaskControls";
 import { AutoRefreshProvider } from "./contexts/AutoRefreshContext";
 import { useCaptchaQueue } from "./hooks/useCaptchaQueue";
 import { useAutoRefresh } from "./hooks/useAutoRefresh";
+import { TASK_QUEUE_LENGTH } from "./types/api";
 
 // 自动刷新间隔（毫秒）- 1 小时
 const AUTO_REFRESH_INTERVAL = 1 * 60 * 60 * 1000;
@@ -53,7 +54,7 @@ function App() {
     activeTaskCount,
   } = useCaptchaQueue({
     taskTimeout: 3 * 60 * 1000,
-    maxConcurrent: 8,
+    maxConcurrent: TASK_QUEUE_LENGTH,
   });
 
   // 用 ref 保证 getActiveTaskCount 始终拿到最新值

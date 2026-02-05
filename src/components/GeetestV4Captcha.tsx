@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { GeeTest4Config, GeeTest4Error, GeeTest4Instance } from "../types/geetest4";
+import type {
+  GeeTest4Config,
+  GeeTest4Error,
+  GeeTest4Instance,
+} from "../types/geetest4";
 import type { CaptchaTask, GeetestValidateResult } from "../types/api";
-import { loadGeeTestV4Script, autoClickCaptchaButton } from "../adapters/geetest";
+import {
+  loadGeeTestV4Script,
+  autoClickCaptchaButton,
+} from "../adapters/geetest";
 import type { ISolveStrategy } from "../core/strategies";
 import type { RecognizeResult, CaptchaCollector } from "../core/recognizers";
 import { captchaConfig } from "../core/config/captcha.config";
@@ -20,12 +27,17 @@ const logger = createModuleLogger("GeetestV4Captcha");
 
 // ============ Types ============
 
-export type CaptchaStatus = "idle" | "solving" | "success" | "error" | "retrying";
+export type CaptchaStatus =
+  | "idle"
+  | "solving"
+  | "success"
+  | "error"
+  | "retrying";
 
 export interface GeetestV4CaptchaProps {
-  task: CaptchaTask;  // 完整的任务（包含 taskId）
+  task: CaptchaTask; // 完整的任务（包含 taskId）
   strategy: ISolveStrategy;
-  onComplete?: () => void;  // 简单回调，只通知完成
+  onComplete?: () => void; // 简单回调，只通知完成
 }
 
 interface CaptchaRefs {
@@ -38,7 +50,10 @@ interface CaptchaRefs {
 // ============ Collector Hook ============
 
 interface FullCaptchaCollector extends CaptchaCollector {
-  getArgs: () => { captures: Record<string, string>; metadata: Record<string, unknown> };
+  getArgs: () => {
+    captures: Record<string, string>;
+    metadata: Record<string, unknown>;
+  };
   reset: () => void;
 }
 
@@ -54,10 +69,13 @@ function useCaptchaCollector(): FullCaptchaCollector {
     metadataRef.current[key] = value;
   }, []);
 
-  const getArgs = useCallback(() => ({
-    captures: { ...capturesRef.current },
-    metadata: { ...metadataRef.current },
-  }), []);
+  const getArgs = useCallback(
+    () => ({
+      captures: { ...capturesRef.current },
+      metadata: { ...metadataRef.current },
+    }),
+    [],
+  );
 
   const reset = useCallback(() => {
     capturesRef.current = {};
@@ -66,7 +84,7 @@ function useCaptchaCollector(): FullCaptchaCollector {
 
   return useMemo(
     () => ({ addCapture, setMetadata, getArgs, reset }),
-    [addCapture, setMetadata, getArgs, reset]
+    [addCapture, setMetadata, getArgs, reset],
   );
 }
 
@@ -106,7 +124,7 @@ export function GeetestV4Captcha(props: GeetestV4CaptchaProps) {
       extra?: {
         result?: GeetestValidateResult;
         errorMessage?: string;
-      }
+      },
     ) => {
       const duration = Date.now() - startTimeRef.current;
 
@@ -135,7 +153,7 @@ export function GeetestV4Captcha(props: GeetestV4CaptchaProps) {
         logger.error("上报任务结果异常:", err);
       }
     },
-    [task]
+    [task],
   );
 
   // Auto solve
@@ -186,7 +204,7 @@ export function GeetestV4Captcha(props: GeetestV4CaptchaProps) {
     uploadCaptchaData({
       ...collector.getArgs(),
       captchaProvider: task.provider,
-      captchaType: task.type || "unknown",
+      captchaType: task.type,
       containerId: task.containerId,
     });
 
@@ -233,7 +251,13 @@ export function GeetestV4Captcha(props: GeetestV4CaptchaProps) {
         onComplete?.();
       }
     },
-    [autoSolveCaptcha, onComplete, maxRetryCount, delays.retryWait, submitTaskResult],
+    [
+      autoSolveCaptcha,
+      onComplete,
+      maxRetryCount,
+      delays.retryWait,
+      submitTaskResult,
+    ],
   );
 
   // Handle GeeTest error
@@ -276,7 +300,13 @@ export function GeetestV4Captcha(props: GeetestV4CaptchaProps) {
         }
       }, delays.imageLoad);
     }, delays.autoClick);
-  }, [autoSolveCaptcha, onComplete, delays.autoClick, delays.imageLoad, submitTaskResult]);
+  }, [
+    autoSolveCaptcha,
+    onComplete,
+    delays.autoClick,
+    delays.imageLoad,
+    submitTaskResult,
+  ]);
 
   // Handle captcha close
   const handleClose = useCallback(() => {

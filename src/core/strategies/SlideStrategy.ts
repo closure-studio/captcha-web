@@ -1,11 +1,13 @@
+import { findGeeTestElements } from "../../adapters/geetest/GeetestAdapter";
 import { createModuleLogger } from "../../utils/logger";
 import { drawDebugOverlay } from "../../utils/screenshot";
-import { findGeeTestElements } from "../../adapters/geetest/GeetestAdapter";
+import {
+  SlideRunner,
+  type GeeTestSlideBypassContext,
+  type SlideConfig,
+} from "../bypass";
 import type { IRecognizer } from "../recognizers";
-import { CaptchaType } from "../recognizers";
-import { SlideRunner, type GeeTestSlideBypassContext, type SlideConfig } from "../bypass";
 import type { ISolveStrategy, SolveContext, SolveResult } from "./types";
-
 const logger = createModuleLogger("SlideStrategy");
 
 /**
@@ -34,7 +36,7 @@ export class SlideStrategy implements ISolveStrategy {
 
     // 2. Recognize
     const recognizeResult = await this.recognizer.recognize(
-      { image: base64, type: CaptchaType.SLIDE },
+      { image: base64, type: "slide" },
       collector,
     );
 

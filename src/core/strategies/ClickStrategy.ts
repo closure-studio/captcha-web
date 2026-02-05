@@ -1,9 +1,10 @@
 import { createModuleLogger } from "../../utils/logger";
 import { drawDebugOverlay } from "../../utils/screenshot";
 import { findGeeTestElements } from "../../adapters/geetest/GeetestAdapter";
-import type { IRecognizer, CaptchaTypeValue } from "../recognizers";
+import type { IRecognizer } from "../recognizers";
 import { ClickRunner, type GeeTestClickBypassContext, type ClickConfig } from "../bypass";
 import type { ISolveStrategy, SolveContext, SolveResult } from "./types";
+import type { CaptchaType } from "../../types/api";
 
 const logger = createModuleLogger("ClickStrategy");
 
@@ -15,11 +16,11 @@ export class ClickStrategy implements ISolveStrategy {
   readonly type = "click" as const;
   private recognizer: IRecognizer;
   private runner: ClickRunner;
-  private captchaType: CaptchaTypeValue;
+  private captchaType: CaptchaType;
 
   constructor(
     recognizer: IRecognizer,
-    captchaType: CaptchaTypeValue,
+    captchaType: CaptchaType,
     clickConfig?: Partial<ClickConfig>,
   ) {
     this.recognizer = recognizer;

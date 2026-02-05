@@ -6,7 +6,7 @@ export interface CaptchaInfo {
   gt?: string; // Geetest V3 ID
   riskType?: string;
   provider: "geetest_v4" | "geetest_v3";
-  type?: CaptchaType;
+  type: CaptchaType;
   created?: number; // 上游创建时间戳
   captcha_type?: string; // 上游验证码类型字段
 }

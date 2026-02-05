@@ -83,7 +83,7 @@ function App() {
       getActiveTaskCount={() => activeTaskCountRef.current}
       onStopPolling={() => stopPollingRef.current()}
     >
-      <div className="min-h-screen bg-slate-50 p-4">
+      <div className="min-h-screen bg-slate-50 p-2">
         <SystemInfo />
         <RefreshBanner activeTaskCount={activeTaskCount} />
         <TaskControls

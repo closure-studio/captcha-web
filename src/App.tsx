@@ -96,7 +96,7 @@ function App() {
           onStopPolling={stopPolling}
         />
 
-        <div className="flex flex-wrap gap-1 mt-8 overflow-y-auto">
+        <div className="flex flex-wrap gap-4 mt-16 overflow-y-auto">
           {tasks.map((task, index) => {
             // 空槽位或已完成的任务显示占位组件
             if (task === null || task.completed) {

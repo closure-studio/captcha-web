@@ -1,9 +1,18 @@
+/*
+ * @Author: jackjieYYY 53422254+jackjieYYY@users.noreply.github.com
+ * @Date: 2026-02-05 10:42:30
+ * @LastEditors: jackjieYYY 53422254+jackjieYYY@users.noreply.github.com
+ * @LastEditTime: 2026-02-05 10:57:51
+ * @FilePath: /captcha-web/src/components/CaptchaSolver.tsx
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 import { type JSX, memo, useMemo } from "react";
 import { captchaConfig } from "../core/config/captcha.config";
 import { CaptchaType, GeminiRecognizer } from "../core/recognizers";
 import { ClickStrategy } from "../core/strategies/ClickStrategy";
 import type { CaptchaTask } from "../types/api";
 import { GeetestV4Captcha } from "./GeetestV4Captcha";
+import GeetestV3Captcha from "./GeetestV3Captcha";
 
 interface CaptchaSolverProps {
   task: CaptchaTask;
@@ -47,18 +56,22 @@ export const CaptchaSolver = memo(function CaptchaSolver(
   }, [task.type]);
 
   const renderCaptchaComponent = () => {
-    switch (task.provider) {
-      case "geetest_v4":
-        return (
-          <GeetestV4Captcha
-            task={task}
-            strategy={strategy}
-            onComplete={onComplete}
-          />
-        );
-      default:
-        return null;
+    if (task.geetestId === "" && task.riskType === "") {
+      return (
+        <GeetestV3Captcha
+          task={task}
+          strategy={strategy}
+          onComplete={onComplete}
+        />
+      );
     }
+    return (
+      <GeetestV4Captcha
+        task={task}
+        strategy={strategy}
+        onComplete={onComplete}
+      />
+    );
   };
 
   return (

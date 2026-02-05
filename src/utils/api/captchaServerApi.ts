@@ -13,6 +13,7 @@ import axios, { type AxiosInstance } from "axios";
 import type {
   ApiResponse,
   CaptchaTask,
+  CaptchaType,
   FetchTasksResponse,
   OverviewStats,
   RecognizerStats,
@@ -22,7 +23,7 @@ import type {
   SubmitResultRequest,
   SubmitResultResponse,
   TrendStats,
-  TypeStats
+  TypeStats,
 } from "../../types/api";
 import type { CaptchaInfo } from "../../types/type";
 import { createModuleLogger } from "../logger";
@@ -87,10 +88,9 @@ export class CaptchaServerApi {
   async fetchTasks(limit: number = 1): Promise<FetchTasksResponse> {
     try {
       // 上游返回的数据直接符合 CaptchaInfo 结构（除了部分字段名差异）
-      const response = await this.client.get<UpstreamApiResponse<CaptchaInfo[]>>(
-        "/captcha/reqs",
-        { params: { limit } }
-      );
+      const response = await this.client.get<
+        UpstreamApiResponse<CaptchaInfo[]>
+      >("/captcha/reqs", { params: { limit } });
 
       const { code, data, message } = response.data;
 
@@ -103,7 +103,9 @@ export class CaptchaServerApi {
       }
 
       // 将上游数据转换为本地 CaptchaTask 格式
-      const tasks: CaptchaTask[] = (data || []).map((info) => this.mapToTask(info));
+      const tasks: CaptchaTask[] = (data || []).map((info) =>
+        this.mapToTask(info),
+      );
 
       return {
         success: true,
@@ -130,14 +132,14 @@ export class CaptchaServerApi {
     const provider = info.provider || (isV4 ? "geetest_v4" : "geetest_v3");
 
     // 映射类型：riskType -> type
-    let type = info.type;
-    if (!type && info.riskType) {
-      if (info.riskType === "slide") {
-        type = "slide";
-      } else if (info.riskType === "word") {
-        type = "word";
-      } else if (info.riskType === "icon" || info.riskType === "click") {
+    let type: CaptchaType = "word";
+    if (info.riskType) {
+      if (info.riskType.includes("icon")) {
         type = "icon";
+      } else if (info.riskType.includes("word")) {
+        type = "word";
+      } else if (info.riskType.includes("slide")) {
+        type = "slide";
       }
     }
 
@@ -165,7 +167,9 @@ export class CaptchaServerApi {
    *
    * 根据 provider 类型提交不同格式的验证结果
    */
-  async submitResult(request: SubmitResultRequest): Promise<SubmitResultResponse> {
+  async submitResult(
+    request: SubmitResultRequest,
+  ): Promise<SubmitResultResponse> {
     // 只有成功时才需要提交到上游
     if (request.status !== "success" || !request.result) {
       logger.info("跳过非成功结果的上游提交", { status: request.status });
@@ -177,7 +181,7 @@ export class CaptchaServerApi {
 
       const response = await this.client.post<UpstreamApiResponse<null>>(
         "/captcha/resp",
-        body
+        body,
       );
 
       const { code, message } = response.data;
@@ -198,7 +202,9 @@ export class CaptchaServerApi {
   /**
    * 构建提交请求体
    */
-  private buildSubmitBody(request: SubmitResultRequest): SubmitV4ResultBody | SubmitV3ResultBody {
+  private buildSubmitBody(
+    request: SubmitResultRequest,
+  ): SubmitV4ResultBody | SubmitV3ResultBody {
     const { challenge, result, provider } = request;
 
     if (provider === "geetest_v4") {
@@ -229,7 +235,7 @@ export class CaptchaServerApi {
    */
   async getOverviewStats(
     from?: number,
-    to?: number
+    to?: number,
   ): Promise<StatsResponse<OverviewStats>> {
     return this.getStats<OverviewStats>({ view: "overview", from, to });
   }
@@ -240,7 +246,7 @@ export class CaptchaServerApi {
    */
   async getStatsByType(
     from?: number,
-    to?: number
+    to?: number,
   ): Promise<StatsResponse<TypeStats[]>> {
     return this.getStats<TypeStats[]>({ view: "by-type", from, to });
   }
@@ -251,9 +257,13 @@ export class CaptchaServerApi {
    */
   async getStatsByRecognizer(
     from?: number,
-    to?: number
+    to?: number,
   ): Promise<StatsResponse<RecognizerStats[]>> {
-    return this.getStats<RecognizerStats[]>({ view: "by-recognizer", from, to });
+    return this.getStats<RecognizerStats[]>({
+      view: "by-recognizer",
+      from,
+      to,
+    });
   }
 
   /**
@@ -263,7 +273,7 @@ export class CaptchaServerApi {
   async getTrendStats(
     interval: StatsInterval = "hour",
     from?: number,
-    to?: number
+    to?: number,
   ): Promise<StatsResponse<TrendStats[]>> {
     return this.getStats<TrendStats[]>({ view: "trend", interval, from, to });
   }
@@ -274,9 +284,12 @@ export class CaptchaServerApi {
    */
   async getStats<T>(params: StatsQueryParams): Promise<StatsResponse<T>> {
     try {
-      const response = await axios.get<StatsResponse<T>>(`${this.baseUrl}/api/stats`, {
-        params,
-      });
+      const response = await axios.get<StatsResponse<T>>(
+        `${this.baseUrl}/api/stats`,
+        {
+          params,
+        },
+      );
       return response.data;
     } catch (error) {
       logger.error("获取统计失败:", error);
@@ -292,7 +305,9 @@ export class CaptchaServerApi {
   /**
    * 检查服务健康状态
    */
-  async healthCheck(): Promise<ApiResponse<{ status: string; timestamp: string }>> {
+  async healthCheck(): Promise<
+    ApiResponse<{ status: string; timestamp: string }>
+  > {
     try {
       const response = await axios.get(`${this.baseUrl}/health`);
       return {
@@ -360,4 +375,4 @@ export const captchaServerApi = new CaptchaServerApi();
 export { CaptchaServerApi as CaptchaServerApiClass };
 
 // 导出类型供外部使用
-export type { SubmitV4ResultBody, SubmitV3ResultBody };
+export type { SubmitV3ResultBody, SubmitV4ResultBody };

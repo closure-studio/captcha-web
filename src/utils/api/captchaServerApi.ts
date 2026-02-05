@@ -142,6 +142,7 @@ export class CaptchaServerApi {
         type = "slide";
       }
     }
+    logger.info("映射验证码类型", { riskType: info.riskType, mappedType: type });
 
     // 本地生成 UUID 作为 taskId，containerId 等于 taskId
     const taskId = crypto.randomUUID();
@@ -157,7 +158,6 @@ export class CaptchaServerApi {
       type,
       created: info.created,
       createdAt: info.created,
-      captcha_type: info.captcha_type,
     };
   }
 

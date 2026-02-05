@@ -8,6 +8,7 @@ import {
 import {
   GeminiClient,
   type GeminiClientOptions,
+  type GeminiSlideResponse,
 } from "../../utils/captcha/gemini/client";
 import type {
   CaptchaCollector,
@@ -16,6 +17,7 @@ import type {
   RecognizeResult,
   ReportErrorResult,
 } from "./types";
+import type { CaptchaType } from "../../types/api";
 
 const logger = createModuleLogger("Gemini Recognizer");
 
@@ -74,7 +76,11 @@ export class GeminiRecognizer implements IRecognizer {
       if (request.type === "slide") {
         result = await this.recognizeSlide(request.image, collector);
       } else {
-        result = await this.recognizeClick(request.image, collector);
+        result = await this.recognizeClick(
+          request.image,
+          request.type,
+          collector,
+        );
       }
       if (result.elapsed != null) {
         recordElapsed(this.name, result.elapsed);
@@ -107,7 +113,10 @@ export class GeminiRecognizer implements IRecognizer {
     );
 
     // 预处理：裁剪图片高度
-    const croppedImage = await this.cropImage(originalImage, this.slideCropConfig);
+    const croppedImage = await this.cropImage(
+      originalImage,
+      this.slideCropConfig,
+    );
 
     collector?.addCapture("cropped", croppedImage);
 
@@ -145,6 +154,7 @@ export class GeminiRecognizer implements IRecognizer {
 
   private async recognizeClick(
     image: string,
+    type: CaptchaType,
     collector?: CaptchaCollector,
   ): Promise<RecognizeResult> {
     const originalImage = image;
@@ -159,7 +169,10 @@ export class GeminiRecognizer implements IRecognizer {
     );
 
     // 预处理：裁剪图片高度
-    const croppedImage = await this.cropImage(originalImage, this.clickCropConfig);
+    const croppedImage = await this.cropImage(
+      originalImage,
+      this.clickCropConfig,
+    );
 
     collector?.addCapture("cropped", croppedImage);
 
@@ -173,8 +186,20 @@ export class GeminiRecognizer implements IRecognizer {
     );
 
     // 调用 Gemini API 识别
-    const result = await this.client.solveIcon(croppedImage);
-
+    let result: GeminiSlideResponse;
+    if (type === "icon") {
+      result = await this.client.solveIcon(croppedImage);
+    } else {
+      result = await this.client.solveWord(croppedImage);
+    }
+    if (result == null) {
+      return {
+        success: false,
+        captchaId: "",
+        points: [],
+        message: "识别失败: 无响应",
+      };
+    }
     if (!result.success || !result.data || result.data.length === 0) {
       return {
         success: false,

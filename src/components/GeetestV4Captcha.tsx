@@ -420,11 +420,6 @@ export function GeetestV4Captcha(props: GeetestV4CaptchaProps) {
         {/* Status Indicator */}
         <StatusIndicator status={status} message={statusMessage} />
       </div>
-
-      {/* Footer */}
-      <p className="text-center text-xs text-slate-400 mt-4">
-        Powered by GeeTest v4 | Strategy: {strategy.type}
-      </p>
     </div>
   );
 }

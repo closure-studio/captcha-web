@@ -85,6 +85,30 @@ export class GeminiClient {
 
     return response.data;
   }
+
+  /**
+   * 识别图标点选验证码
+   * @param image Base64 编码的图片或 data URL
+   * @returns 识别结果，包含坐标点数组
+   */
+  async solveWord(image: string): Promise<GeminiSlideResponse> {
+    const response = await axios.post<GeminiSlideResponse>(
+      `${this.baseUrl}/solver/gemini/geetest/word`,
+      { image },
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+        timeout: 60000,
+      },
+    );
+
+    if (!response.data.success) {
+      throw new Error("Gemini solveWord error: Request failed");
+    }
+
+    return response.data;
+  }
 }
 
 // 默认客户端实例

@@ -186,7 +186,7 @@ export function GeetestV3Captcha(props: GeetestV3CaptchaProps) {
     uploadCaptchaData({
       ...collector.getArgs(),
       captchaProvider: task.provider,
-      captchaType: task.type || "unknown",
+      captchaType: task.type,
       containerId: task.containerId,
     });
 
@@ -390,11 +390,6 @@ export function GeetestV3Captcha(props: GeetestV3CaptchaProps) {
         {/* Status Indicator */}
         <StatusIndicator status={status} message={statusMessage} />
       </div>
-
-      {/* Footer */}
-      <p className="text-center text-xs text-slate-400 mt-4">
-        Powered by GeeTest v3 | Strategy: {strategy.type}
-      </p>
     </div>
   );
 }

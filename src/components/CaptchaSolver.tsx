@@ -22,26 +22,8 @@ export const CaptchaSolver = memo(function CaptchaSolver(
 
   const strategy = useMemo(() => {
     const { click } = captchaConfig;
-
-    if (task.type === "word") {
-      const recognizer = new GeminiRecognizer();
-      return new ClickStrategy(recognizer, "word", {
-        delay: { ...click.delay },
-        debug: true,
-      });
-    }
-
-    if (task.type === "icon") {
-      const recognizer = new GeminiRecognizer();
-      return new ClickStrategy(recognizer, "icon", {
-        delay: { ...click.delay },
-        debug: true,
-      });
-    }
-
-    // Default: slide with Gemini
     const recognizer = new GeminiRecognizer();
-    return new ClickStrategy(recognizer, "slide", {
+    return new ClickStrategy(recognizer, task.type, {
       delay: { ...click.delay },
       debug: true,
     });

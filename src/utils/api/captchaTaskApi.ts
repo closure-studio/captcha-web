@@ -23,8 +23,8 @@ class CaptchaTaskApi {
   }
 
   // 获取待处理的验证码任务
-  async fetchTasks(): Promise<FetchTasksResponse> {
-    return captchaServerApi.fetchTasks();
+  async fetchTasks(limit: number = 1): Promise<FetchTasksResponse> {
+    return captchaServerApi.fetchTasks(limit);
   }
 
   // 提交验证结果

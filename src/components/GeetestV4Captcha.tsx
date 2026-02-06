@@ -343,7 +343,6 @@ export function GeetestV4Captcha(props: GeetestV4CaptchaProps) {
         if (typeof window.initGeetest4 !== "function") {
           throw new Error("GeeTest v4 SDK not loaded properly");
         }
-
         const config: GeeTest4Config = {
           captchaId: task.geetestId || "",
           riskType: task.riskType,
@@ -351,7 +350,7 @@ export function GeetestV4Captcha(props: GeetestV4CaptchaProps) {
           language: "zh-cn",
           onError: (err: GeeTest4Error) => handleErrorRef.current(err),
         };
-
+        console.log("Calling initGeetest4 with config:", config);
         window.initGeetest4(config, (captcha) => {
           if (!isMounted) {
             captcha.destroy();

@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { GeeTest3Config, GeeTest3Error, GeeTest3Instance } from "../types/geetest3";
-import type { CaptchaTask, GeetestValidateResult } from "../types/api";
-import { loadGeeTestV4Script, autoClickCaptchaButton } from "../adapters/geetest";
-import type { ISolveStrategy } from "../core/strategies";
-import type { RecognizeResult, CaptchaCollector } from "../core/recognizers";
+import { autoClickCaptchaButton } from "../adapters/geetest";
+import { loadGeeTestV3Script } from "../adapters/geetest/GeetestSDK";
 import { captchaConfig } from "../core/config/captcha.config";
-import { uploadCaptchaData } from "../utils/captcha/upload";
+import type { CaptchaCollector, RecognizeResult } from "../core/recognizers";
+import type { ISolveStrategy } from "../core/strategies";
+import type { CaptchaTask, GeetestValidateResult } from "../types/api";
+import type { GeeTest3Config, GeeTest3Error, GeeTest3Instance } from "../types/geetest3";
 import { captchaTaskApi } from "../utils/api/captchaTaskApi";
+import { uploadCaptchaData } from "../utils/captcha/upload";
 import { recordCaptchaResult } from "../utils/captchaStats";
-import { createModuleLogger } from "../utils/logger";
 import { generateContainerId, getErrorMessage } from "../utils/helpers";
+import { createModuleLogger } from "../utils/logger";
 import {
   ErrorDisplay,
   LoadingSpinner,
@@ -306,14 +307,17 @@ export function GeetestV3Captcha(props: GeetestV3CaptchaProps) {
         setIsLoading(true);
         setLoadError(null);
 
-        await loadGeeTestV4Script();
+        await loadGeeTestV3Script();
 
         if (!isMounted || !containerRef.current) return;
 
         if (typeof window.initGeetest !== "function") {
           throw new Error("GeeTest v3 SDK not loaded properly");
         }
-
+        console.log("Initializing GeeTest v3 with config:", {
+          gt: task.gt,
+          challenge: task.challenge,
+        });
         const config: GeeTest3Config = {
           gt: task.gt || "",
           challenge: task.challenge,

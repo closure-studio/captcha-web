@@ -201,6 +201,28 @@ export interface StatsResponse<T> {
   error?: string;
 }
 
+// ============ 详细任务结果提交 ============
+
+// 详细任务结果提交请求 (POST /api/tasks/{taskId})
+export interface SubmitTaskDetailedRequest {
+  taskId: string;
+  status: CaptchaResultStatus;
+  result?: GeetestValidateResult;
+  duration?: number;
+  recognition?: RecognitionRecord;
+  bypass?: BypassRecord;
+  assets?: AssetRecord[];
+  // 任务原始信息
+  challenge?: string;
+  geetestId?: string;
+  provider?: Provider;
+  captchaType?: CaptchaType;
+  riskType?: string;
+}
+
+// 详细任务结果提交响应
+export type SubmitTaskDetailedResponse = ApiResponse<null>;
+
 // ============ API 配置 ============
 
 export interface CaptchaApiConfig {

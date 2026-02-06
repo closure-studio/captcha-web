@@ -22,6 +22,8 @@ import type {
   StatsResponse,
   SubmitResultRequest,
   SubmitResultResponse,
+  SubmitTaskDetailedRequest,
+  SubmitTaskDetailedResponse,
   TrendStats,
   TypeStats,
 } from "../../types/api";
@@ -223,6 +225,33 @@ export class CaptchaServerApi {
         geetest_validate: result!.geetest_validate!,
         geetest_seccode: result!.geetest_seccode!,
       } as SubmitV3ResultBody;
+    }
+  }
+
+  /**
+   * 提交详细任务结果
+   * POST /api/tasks/{taskId}
+   *
+   * 包含识别记录、Bypass 记录和资产信息
+   */
+  async submitTaskDetailed(
+    request: SubmitTaskDetailedRequest,
+  ): Promise<SubmitTaskDetailedResponse> {
+    try {
+      const { taskId, ...body } = request;
+
+      const response = await this.client.post<SubmitTaskDetailedResponse>(
+        `/api/tasks/${taskId}`,
+        body,
+      );
+
+      return response.data;
+    } catch (error) {
+      logger.error("提交详细任务结果失败:", error);
+      return {
+        success: false,
+        error: this.getErrorMessage(error),
+      };
     }
   }
 

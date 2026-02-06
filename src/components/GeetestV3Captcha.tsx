@@ -2,9 +2,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { autoClickCaptchaButton } from "../adapters/geetest";
 import { loadGeeTestV3Script } from "../adapters/geetest/GeetestSDK";
 import { captchaConfig } from "../core/config/captcha.config";
-import type { CaptchaCollector, RecognizeResult } from "../core/recognizers";
-import type { ISolveStrategy } from "../core/strategies";
-import type { CaptchaTask, GeetestValidateResult } from "../types/api";
+import type { CaptchaCollector } from "../core/recognizers";
+import type { ISolveStrategy, SolveResult } from "../core/strategies";
+import type {
+  CaptchaTask,
+  GeetestValidateResult,
+  RecognitionRecord,
+  BypassRecord,
+  AssetRecord,
+  RecognizerName,
+} from "../types/api";
 import type { GeeTest3Config, GeeTest3Error, GeeTest3Instance } from "../types/geetest3";
 import { captchaTaskApi } from "../utils/api/captchaTaskApi";
 import { uploadCaptchaData } from "../utils/captcha/upload";
@@ -32,8 +39,9 @@ export interface GeetestV3CaptchaProps {
 interface CaptchaRefs {
   captcha: GeeTest3Instance | null;
   recognitionId: string | null;
-  solveResult: RecognizeResult | null;
+  solveResult: SolveResult | null;
   retryCount: number;
+  attemptSeq: number;
 }
 
 // ============ Collector Hook ============
@@ -89,6 +97,7 @@ export function GeetestV3Captcha(props: GeetestV3CaptchaProps) {
     recognitionId: null,
     solveResult: null,
     retryCount: 0,
+    attemptSeq: 0,
   });
 
   // State
@@ -114,7 +123,48 @@ export function GeetestV3Captcha(props: GeetestV3CaptchaProps) {
       // 记录统计数据
       recordCaptchaResult(resultStatus, duration);
 
+      // 构建识别记录
+      const solveResult = refs.current.solveResult;
+      let recognition: RecognitionRecord | undefined;
+      let bypass: BypassRecord | undefined;
+      let assets: AssetRecord[] | undefined;
+
+      if (solveResult) {
+        const { recognizeResult, bypassResult } = solveResult;
+
+        // 识别记录
+        recognition = {
+          recognizerName: (collector.getArgs().metadata.recognizerName as RecognizerName) || "Gemini",
+          success: recognizeResult.success,
+          attemptSeq: refs.current.attemptSeq,
+          captchaId: recognizeResult.captchaId,
+          points: recognizeResult.points,
+          message: recognizeResult.message,
+          elapsedMs: recognizeResult.elapsed,
+        };
+
+        // Bypass 记录
+        bypass = {
+          bypassType: strategy.type,
+          success: bypassResult.success,
+          message: bypassResult.message,
+        };
+
+        // 资产记录（从 collector 获取）
+        const captures = collector.getArgs().captures;
+        if (Object.keys(captures).length > 0) {
+          assets = [];
+          for (const assetType of Object.keys(captures)) {
+            assets.push({
+              assetType: assetType as AssetRecord["assetType"],
+              r2Key: `captchas/${task.provider}/${task.type}/${task.containerId}/${assetType}.png`,
+            });
+          }
+        }
+      }
+
       try {
+        // 提交到上游服务器（原有逻辑）
         const response = await captchaTaskApi.submitResult({
           taskId: task.taskId,
           status: resultStatus,
@@ -132,11 +182,32 @@ export function GeetestV3Captcha(props: GeetestV3CaptchaProps) {
         } else {
           logger.error(`任务结果上报失败: ${response.message}`);
         }
+
+        // 提交详细记录到统计服务器（新增逻辑）
+        const detailedResponse = await captchaTaskApi.submitTaskDetailed({
+          taskId: task.taskId,
+          status: resultStatus,
+          result: extra?.result,
+          duration,
+          recognition,
+          bypass,
+          assets,
+          challenge: task.challenge,
+          geetestId: task.gt,
+          provider: task.provider,
+          captchaType: task.type,
+          riskType: task.riskType,
+        });
+        if (detailedResponse.success) {
+          logger.info(`详细任务结果已上报: ${task.taskId}`);
+        } else {
+          logger.error(`详细任务结果上报失败: ${detailedResponse.error}`);
+        }
       } catch (err) {
         logger.error("上报任务结果异常:", err);
       }
     },
-    [task]
+    [task, collector, strategy.type]
   );
 
   // Auto solve
@@ -145,6 +216,9 @@ export function GeetestV3Captcha(props: GeetestV3CaptchaProps) {
     if (!parentContainer) throw new Error("未找到外部容器");
 
     collector.reset();
+
+    // 增加尝试序号
+    refs.current.attemptSeq += 1;
 
     // Wait for animation/render
     await new Promise((resolve) => setTimeout(resolve, delays.screenshot));
@@ -156,8 +230,8 @@ export function GeetestV3Captcha(props: GeetestV3CaptchaProps) {
       collector,
     });
 
-    // Save result
-    refs.current.solveResult = solveResult.recognizeResult;
+    // Save full result
+    refs.current.solveResult = solveResult;
     return solveResult.recognizeResult.captchaId;
   }, [task.containerId, strategy, collector, delays.screenshot]);
 
@@ -181,7 +255,7 @@ export function GeetestV3Captcha(props: GeetestV3CaptchaProps) {
     collector.setMetadata("riskType", task.riskType);
     collector.setMetadata("validateResult", result);
     if (refs.current.solveResult) {
-      collector.setMetadata("solveResult", refs.current.solveResult);
+      collector.setMetadata("solveResult", refs.current.solveResult.recognizeResult);
     }
 
     uploadCaptchaData({
@@ -254,6 +328,7 @@ export function GeetestV3Captcha(props: GeetestV3CaptchaProps) {
   const handleReady = useCallback(() => {
     setIsLoading(false);
     refs.current.retryCount = 0;
+    refs.current.attemptSeq = 0;
 
     if (!containerRef.current) return;
 

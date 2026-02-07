@@ -15,17 +15,10 @@ import type {
   CaptchaTask,
   CaptchaType,
   FetchTasksResponse,
-  OverviewStats,
-  RecognizerStats,
-  StatsInterval,
-  StatsQueryParams,
-  StatsResponse,
   SubmitResultRequest,
   SubmitResultResponse,
   SubmitTaskDetailedRequest,
-  SubmitTaskDetailedResponse,
-  TrendStats,
-  TypeStats,
+  SubmitTaskDetailedResponse
 } from "../../types/api";
 import type { CaptchaInfo } from "../../types/type";
 import { createModuleLogger } from "../logger";
@@ -144,7 +137,10 @@ export class CaptchaServerApi {
         type = "slide";
       }
     }
-    logger.info("映射验证码类型", { riskType: info.riskType, mappedType: type });
+    logger.info("映射验证码类型", {
+      riskType: info.riskType,
+      mappedType: type,
+    });
 
     // 本地生成 UUID 作为 taskId，containerId 等于 taskId
     const taskId = crypto.randomUUID();
@@ -255,80 +251,6 @@ export class CaptchaServerApi {
     }
   }
 
-  // ============ 统计查询 ============
-  // 注意：统计相关 API 使用 /api 前缀，与上游 captcha API 不同
-
-  /**
-   * 获取总览统计
-   * GET /api/stats?view=overview
-   */
-  async getOverviewStats(
-    from?: number,
-    to?: number,
-  ): Promise<StatsResponse<OverviewStats>> {
-    return this.getStats<OverviewStats>({ view: "overview", from, to });
-  }
-
-  /**
-   * 获取按类型统计
-   * GET /api/stats?view=by-type
-   */
-  async getStatsByType(
-    from?: number,
-    to?: number,
-  ): Promise<StatsResponse<TypeStats[]>> {
-    return this.getStats<TypeStats[]>({ view: "by-type", from, to });
-  }
-
-  /**
-   * 获取按识别器统计
-   * GET /api/stats?view=by-recognizer
-   */
-  async getStatsByRecognizer(
-    from?: number,
-    to?: number,
-  ): Promise<StatsResponse<RecognizerStats[]>> {
-    return this.getStats<RecognizerStats[]>({
-      view: "by-recognizer",
-      from,
-      to,
-    });
-  }
-
-  /**
-   * 获取时间趋势统计
-   * GET /api/stats?view=trend&interval={interval}
-   */
-  async getTrendStats(
-    interval: StatsInterval = "hour",
-    from?: number,
-    to?: number,
-  ): Promise<StatsResponse<TrendStats[]>> {
-    return this.getStats<TrendStats[]>({ view: "trend", interval, from, to });
-  }
-
-  /**
-   * 通用统计查询
-   * GET /api/stats
-   */
-  async getStats<T>(params: StatsQueryParams): Promise<StatsResponse<T>> {
-    try {
-      const response = await axios.get<StatsResponse<T>>(
-        `${this.baseUrl}/api/stats`,
-        {
-          params,
-        },
-      );
-      return response.data;
-    } catch (error) {
-      logger.error("获取统计失败:", error);
-      return {
-        success: false,
-        error: this.getErrorMessage(error),
-      };
-    }
-  }
-
   // ============ 健康检查 ============
 
   /**
@@ -404,4 +326,5 @@ export const captchaServerApi = new CaptchaServerApi();
 export { CaptchaServerApi as CaptchaServerApiClass };
 
 // 导出类型供外部使用
-export type { SubmitV3ResultBody, SubmitV4ResultBody };
+  export type { SubmitV3ResultBody, SubmitV4ResultBody };
+

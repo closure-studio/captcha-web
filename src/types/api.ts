@@ -10,9 +10,6 @@ export interface ApiResponse<T = unknown> {
   error?: string;
 }
 
-// 任务状态
-export type TaskStatus = "pending" | "success" | "failed" | "timeout" | "error";
-
 // 验证码类型
 export type CaptchaType = "slide" | "word" | "icon";
 
@@ -57,10 +54,22 @@ export type TaskSlot = CaptchaTask | null;
 
 // 固定长度的任务队列类型
 export type TaskQueue = [
-  TaskSlot, TaskSlot, TaskSlot, TaskSlot,
-  TaskSlot, TaskSlot, TaskSlot, TaskSlot,
-  TaskSlot, TaskSlot, TaskSlot, TaskSlot,
-  TaskSlot, TaskSlot, TaskSlot, TaskSlot,
+  TaskSlot,
+  TaskSlot,
+  TaskSlot,
+  TaskSlot,
+  TaskSlot,
+  TaskSlot,
+  TaskSlot,
+  TaskSlot,
+  TaskSlot,
+  TaskSlot,
+  TaskSlot,
+  TaskSlot,
+  TaskSlot,
+  TaskSlot,
+  TaskSlot,
+  TaskSlot,
 ];
 
 // 获取任务列表的响应（使用统一的 ApiResponse 格式）
@@ -105,8 +114,13 @@ export interface AssetRecord {
 
 // ============ 提交结果 ============
 
-// 验证结果状态 (兼容旧类型)
-export type CaptchaResultStatus = TaskStatus;
+// 验证结果状态
+export type CaptchaResultStatus =
+  | "pending"
+  | "success"
+  | "failed"
+  | "timeout"
+  | "error";
 
 // GeeTest 验证成功凭证
 export interface GeetestValidateResult {
@@ -142,64 +156,6 @@ export interface SubmitResultRequest {
 }
 
 // ============ 统计相关 ============
-
-// 统计视图类型
-export type StatsView = "overview" | "by-type" | "by-recognizer" | "trend";
-
-// 时间粒度
-export type StatsInterval = "hour" | "day";
-
-// 统计查询参数
-export interface StatsQueryParams {
-  view?: StatsView;
-  from?: number;
-  to?: number;
-  interval?: StatsInterval;
-}
-
-// 总览统计
-export interface OverviewStats {
-  total: number;
-  success: number;
-  failed: number;
-  timeout: number;
-  error: number;
-  successRate: number;
-  avgDurationMs: number;
-}
-
-// 按类型统计
-export interface TypeStats {
-  captchaType: CaptchaType;
-  total: number;
-  success: number;
-  successRate: number;
-  avgDurationMs: number;
-}
-
-// 按识别器统计
-export interface RecognizerStats {
-  recognizerName: RecognizerName;
-  total: number;
-  success: number;
-  successRate: number;
-  avgElapsedMs: number;
-}
-
-// 时间趋势统计
-export interface TrendStats {
-  time: string;
-  total: number;
-  success: number;
-  successRate: number;
-}
-
-// 统计响应
-export interface StatsResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-}
 
 // ============ 详细任务结果提交 ============
 

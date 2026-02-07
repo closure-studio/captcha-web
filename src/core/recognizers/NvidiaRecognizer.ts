@@ -1,6 +1,7 @@
 import { createModuleLogger } from "../../utils/logger";
 import { recordElapsed } from "../../hooks/useSystemInfoManager";
 import { DEFAULT_SLIDE_CROP, DEFAULT_CLICK_CROP } from "../../consts/consts";
+import type { ImageCropConfig, RecognitionClientOptions } from "../../types/api";
 import {
   captureScreenshot,
   logScreenshotPreview,
@@ -8,7 +9,6 @@ import {
 } from "../../utils/screenshot";
 import {
   NvidiaClient,
-  type NvidiaClientOptions,
 } from "../../utils/captcha/nvidia/client";
 import type {
   CaptchaCollector,
@@ -21,14 +21,6 @@ import type {
 const logger = createModuleLogger("Nvidia Recognizer");
 
 /**
- * 图片裁剪配置
- */
-export interface ImageCropConfig {
-  topCrop: number;
-  bottomCrop: number;
-}
-
-/**
  * Nvidia 识别器
  * 支持滑块验证码和点选验证码，带图片预处理（裁剪高度）
  */
@@ -39,7 +31,7 @@ export class NvidiaRecognizer implements IRecognizer {
   private clickCropConfig: ImageCropConfig;
 
   constructor(
-    options?: NvidiaClientOptions,
+    options?: RecognitionClientOptions,
     slideCropConfig?: Partial<ImageCropConfig>,
     clickCropConfig?: Partial<ImageCropConfig>,
   ) {

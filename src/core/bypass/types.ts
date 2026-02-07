@@ -2,6 +2,8 @@
  * Bypass 执行器类型定义
  */
 
+export type { Point } from "../../types/api";
+
 /**
  * 滑动配置
  */
@@ -54,12 +56,4 @@ export interface GeeTestClickBypassContext {
 export interface BypassResult {
   success: boolean;
   message: string;
-}
-
-/**
- * 坐标点
- */
-export interface Point {
-  x: number;
-  y: number;
 }

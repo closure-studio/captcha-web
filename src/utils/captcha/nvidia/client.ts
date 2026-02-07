@@ -1,24 +1,12 @@
 import axios from "axios";
 import { createModuleLogger } from "../../logger";
 import { CAPTCHA_SERVER_HOST } from "../../../consts/consts";
+import type {
+  RecognitionResponse,
+  RecognitionClientOptions,
+} from "../../../types/api";
 
 const logger = createModuleLogger("Nvidia Client");
-
-/**
- * Nvidia Slide API 响应数据
- */
-export interface NvidiaSlideResponse {
-  success: boolean;
-  elapsed?: number;
-  data: Array<{ x: number; y: number }>;
-}
-
-/**
- * Nvidia 客户端选项
- */
-export interface NvidiaClientOptions {
-  baseUrl?: string;
-}
 
 /**
  * Nvidia API 客户端
@@ -26,7 +14,7 @@ export interface NvidiaClientOptions {
 export class NvidiaClient {
   private baseUrl: string;
 
-  constructor(options: NvidiaClientOptions = {}) {
+  constructor(options: RecognitionClientOptions = {}) {
     this.baseUrl = options.baseUrl || CAPTCHA_SERVER_HOST;
 
     if (!this.baseUrl) {
@@ -36,13 +24,8 @@ export class NvidiaClient {
     }
   }
 
-  /**
-   * 识别滑块验证码
-   * @param image Base64 编码的图片或 data URL
-   * @returns 识别结果，包含坐标点数组
-   */
-  async solveSlider(image: string): Promise<NvidiaSlideResponse> {
-    const response = await axios.post<NvidiaSlideResponse>(
+  async solveSlider(image: string): Promise<RecognitionResponse> {
+    const response = await axios.post<RecognitionResponse>(
       `${this.baseUrl}/solver/nvidia/geetest/slider`,
       { image },
       {
@@ -60,13 +43,8 @@ export class NvidiaClient {
     return response.data;
   }
 
-  /**
-   * 识别图标点选验证码
-   * @param image Base64 编码的图片或 data URL
-   * @returns 识别结果，包含坐标点数组
-   */
-  async solveIcon(image: string): Promise<NvidiaSlideResponse> {
-    const response = await axios.post<NvidiaSlideResponse>(
+  async solveIcon(image: string): Promise<RecognitionResponse> {
+    const response = await axios.post<RecognitionResponse>(
       `${this.baseUrl}/solver/nvidia/geetest/icon`,
       { image },
       {
@@ -88,9 +66,6 @@ export class NvidiaClient {
 // 默认客户端实例
 let defaultClient: NvidiaClient | null = null;
 
-/**
- * 获取默认客户端实例
- */
 export function getDefaultNvidiaClient(): NvidiaClient {
   if (!defaultClient) {
     defaultClient = new NvidiaClient();
@@ -98,16 +73,10 @@ export function getDefaultNvidiaClient(): NvidiaClient {
   return defaultClient;
 }
 
-/**
- * 识别滑块验证码（使用默认客户端）
- */
-export async function solveSlider(image: string): Promise<NvidiaSlideResponse> {
+export async function solveSlider(image: string): Promise<RecognitionResponse> {
   return getDefaultNvidiaClient().solveSlider(image);
 }
 
-/**
- * 识别图标点选验证码（使用默认客户端）
- */
-export async function solveIcon(image: string): Promise<NvidiaSlideResponse> {
+export async function solveIcon(image: string): Promise<RecognitionResponse> {
   return getDefaultNvidiaClient().solveIcon(image);
 }

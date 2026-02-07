@@ -9,6 +9,5 @@ export type {
   RecognizeResult,
   ReportErrorResult,
   CaptchaCollector,
-  Point,
 } from "./types";
 export { RecognizeCode } from "./types";

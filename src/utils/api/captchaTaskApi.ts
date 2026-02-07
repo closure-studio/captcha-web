@@ -3,8 +3,6 @@ import type {
   FetchTasksResponse,
   SubmitResultRequest,
   SubmitResultResponse,
-  SubmitTaskDetailedRequest,
-  SubmitTaskDetailedResponse,
 } from "../../types/api";
 import { captchaServerApi } from "./captchaServerApi";
 import { CAPTCHA_SERVER_HOST } from "../../consts/consts";
@@ -39,8 +37,8 @@ class CaptchaTaskApi {
 
   // 提交详细任务结果（包含识别记录、Bypass 记录和资产信息）
   async submitTaskDetailed(
-    request: SubmitTaskDetailedRequest,
-  ): Promise<SubmitTaskDetailedResponse> {
+    request: SubmitResultRequest,
+  ): Promise<SubmitResultResponse> {
     return captchaServerApi.submitTaskDetailed(request);
   }
 

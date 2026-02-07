@@ -1,5 +1,6 @@
 import axios from "axios";
 import { AEGIR_API_URL } from "../../../../consts/consts";
+import type { Point } from "../../../../types/api";
 
 /**
  * Aegir Captcha 请求参数
@@ -35,14 +36,6 @@ export interface AegirCaptchaData {
   rectangles: unknown[];
   /** YOLO 检测数据 */
   yolo_data: unknown[];
-}
-
-/**
- * 解析后的坐标点
- */
-export interface AegirPoint {
-  x: number;
-  y: number;
 }
 
 /**
@@ -99,7 +92,7 @@ export class AegirClient {
    * @param rawBase64 Base64 编码的图片（不含 data:image/...;base64, 前缀）
    * @returns 解析后的坐标点数组
    */
-  async selectCaptchaPoints(rawBase64: string): Promise<AegirPoint[]> {
+  async selectCaptchaPoints(rawBase64: string): Promise<Point[]> {
     const response = await this.selectCaptcha(rawBase64);
     return this.parsePoints(response.data.points);
   }
@@ -109,7 +102,7 @@ export class AegirClient {
    * @param points 坐标点字符串数组，格式为 ["x, y", "x, y", ...]
    * @returns 解析后的坐标点数组
    */
-  parsePoints(points: string[]): AegirPoint[] {
+  parsePoints(points: string[]): Point[] {
     return points
       .map((point) => {
         // 处理可能的空格，如 "282.5, 228" 或 "282.5,228"
@@ -125,7 +118,7 @@ export class AegirClient {
         }
         return { x, y };
       })
-      .filter((point): point is AegirPoint => point !== null);
+      .filter((point): point is Point => point !== null);
   }
 
   /**
@@ -133,7 +126,7 @@ export class AegirClient {
    * @param rawBase64 Base64 编码的图片（不含 data:image/...;base64, 前缀）
    * @returns 有效的坐标点数组
    */
-  async selectValidPoints(rawBase64: string): Promise<AegirPoint[]> {
+  async selectValidPoints(rawBase64: string): Promise<Point[]> {
     return this.selectCaptchaPoints(rawBase64);
   }
 }
@@ -176,7 +169,7 @@ export async function selectCaptcha(
  */
 export async function selectCaptchaPoints(
   rawBase64: string,
-): Promise<AegirPoint[]> {
+): Promise<Point[]> {
   return getDefaultAegirClient().selectCaptchaPoints(rawBase64);
 }
 
@@ -187,6 +180,6 @@ export async function selectCaptchaPoints(
  */
 export async function selectValidPoints(
   rawBase64: string,
-): Promise<AegirPoint[]> {
+): Promise<Point[]> {
   return getDefaultAegirClient().selectValidPoints(rawBase64);
 }

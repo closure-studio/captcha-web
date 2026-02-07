@@ -1,15 +1,13 @@
 import axios, { type AxiosInstance } from "axios";
 import type {
   ApiResponse,
+  CaptchaInfo,
   CaptchaTask,
   CaptchaType,
   FetchTasksResponse,
   SubmitResultRequest,
   SubmitResultResponse,
-  SubmitTaskDetailedRequest,
-  SubmitTaskDetailedResponse
 } from "../../types/api";
-import type { CaptchaInfo } from "../../types/type";
 import { createModuleLogger } from "../logger";
 import { CAPTCHA_SERVER_HOST } from "../../consts/consts";
 
@@ -217,12 +215,12 @@ export class CaptchaServerApi {
    * 包含识别记录、Bypass 记录和资产信息
    */
   async submitTaskDetailed(
-    request: SubmitTaskDetailedRequest,
-  ): Promise<SubmitTaskDetailedResponse> {
+    request: SubmitResultRequest,
+  ): Promise<SubmitResultResponse> {
     try {
       const { taskId, ...body } = request;
 
-      const response = await this.client.post<SubmitTaskDetailedResponse>(
+      const response = await this.client.post<SubmitResultResponse>(
         `/api/tasks/${taskId}`,
         body,
       );

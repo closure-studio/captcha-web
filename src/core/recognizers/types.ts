@@ -1,4 +1,4 @@
-import type { CaptchaType } from "../../types/api";
+import type { CaptchaType, Point } from "../../types/api";
 import type { ScreenshotResult } from "../../utils/screenshot";
 
 /**
@@ -11,14 +11,6 @@ export const RecognizeCode = {
 
 export type RecognizeCodeValue =
   (typeof RecognizeCode)[keyof typeof RecognizeCode];
-
-/**
- * 坐标点
- */
-export interface Point {
-  x: number;
-  y: number;
-}
 
 /**
  * 数据收集器接口

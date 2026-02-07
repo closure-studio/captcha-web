@@ -1,24 +1,12 @@
 import axios from "axios";
 import { createModuleLogger } from "../../logger";
 import { CAPTCHA_SERVER_HOST } from "../../../consts/consts";
+import type {
+  RecognitionResponse,
+  RecognitionClientOptions,
+} from "../../../types/api";
 
 const logger = createModuleLogger("Gemini Client");
-
-/**
- * Gemini Slide API 响应数据
- */
-export interface GeminiSlideResponse {
-  success: boolean;
-  elapsed?: number;
-  data: Array<{ x: number; y: number }>;
-}
-
-/**
- * Gemini 客户端选项
- */
-export interface GeminiClientOptions {
-  baseUrl?: string;
-}
 
 /**
  * Gemini API 客户端
@@ -26,7 +14,7 @@ export interface GeminiClientOptions {
 export class GeminiClient {
   private baseUrl: string;
 
-  constructor(options: GeminiClientOptions = {}) {
+  constructor(options: RecognitionClientOptions = {}) {
     this.baseUrl = options.baseUrl || CAPTCHA_SERVER_HOST;
 
     if (!this.baseUrl) {
@@ -36,13 +24,8 @@ export class GeminiClient {
     }
   }
 
-  /**
-   * 识别滑块验证码
-   * @param image Base64 编码的图片或 data URL
-   * @returns 识别结果，包含坐标点数组
-   */
-  async solveSlider(image: string): Promise<GeminiSlideResponse> {
-    const response = await axios.post<GeminiSlideResponse>(
+  async solveSlider(image: string): Promise<RecognitionResponse> {
+    const response = await axios.post<RecognitionResponse>(
       `${this.baseUrl}/solver/gemini/geetest/slider`,
       { image },
       {
@@ -60,13 +43,8 @@ export class GeminiClient {
     return response.data;
   }
 
-  /**
-   * 识别图标点选验证码
-   * @param image Base64 编码的图片或 data URL
-   * @returns 识别结果，包含坐标点数组
-   */
-  async solveIcon(image: string): Promise<GeminiSlideResponse> {
-    const response = await axios.post<GeminiSlideResponse>(
+  async solveIcon(image: string): Promise<RecognitionResponse> {
+    const response = await axios.post<RecognitionResponse>(
       `${this.baseUrl}/solver/gemini/geetest/icon`,
       { image },
       {
@@ -84,13 +62,8 @@ export class GeminiClient {
     return response.data;
   }
 
-  /**
-   * 识别图标点选验证码
-   * @param image Base64 编码的图片或 data URL
-   * @returns 识别结果，包含坐标点数组
-   */
-  async solveWord(image: string): Promise<GeminiSlideResponse> {
-    const response = await axios.post<GeminiSlideResponse>(
+  async solveWord(image: string): Promise<RecognitionResponse> {
+    const response = await axios.post<RecognitionResponse>(
       `${this.baseUrl}/solver/gemini/geetest/word`,
       { image },
       {
@@ -112,9 +85,6 @@ export class GeminiClient {
 // 默认客户端实例
 let defaultClient: GeminiClient | null = null;
 
-/**
- * 获取默认客户端实例
- */
 export function getDefaultGeminiClient(): GeminiClient {
   if (!defaultClient) {
     defaultClient = new GeminiClient();
@@ -122,16 +92,10 @@ export function getDefaultGeminiClient(): GeminiClient {
   return defaultClient;
 }
 
-/**
- * 识别滑块验证码（使用默认客户端）
- */
-export async function solveSlider(image: string): Promise<GeminiSlideResponse> {
+export async function solveSlider(image: string): Promise<RecognitionResponse> {
   return getDefaultGeminiClient().solveSlider(image);
 }
 
-/**
- * 识别图标点选验证码（使用默认客户端）
- */
-export async function solveIcon(image: string): Promise<GeminiSlideResponse> {
+export async function solveIcon(image: string): Promise<RecognitionResponse> {
   return getDefaultGeminiClient().solveIcon(image);
 }

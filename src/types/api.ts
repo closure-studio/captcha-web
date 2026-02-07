@@ -1,5 +1,3 @@
-import type { CaptchaInfo } from "./type";
-
 // ============ 基础类型 ============
 
 // 通用 API 响应格式
@@ -36,7 +34,35 @@ export interface Point {
   y: number;
 }
 
+// 图片裁剪配置
+export interface ImageCropConfig {
+  topCrop: number;
+  bottomCrop: number;
+}
+
+// 识别 API 通用响应
+export interface RecognitionResponse {
+  success: boolean;
+  elapsed?: number;
+  data: Point[];
+}
+
+// 识别 API 客户端选项
+export interface RecognitionClientOptions {
+  baseUrl?: string;
+}
+
 // ============ 任务相关 ============
+
+export interface CaptchaInfo {
+  challenge: string;
+  geetestId?: string; // Geetest V4 ID
+  gt?: string; // Geetest V3 ID
+  riskType?: string;
+  provider: "geetest_v4" | "geetest_v3";
+  type: CaptchaType;
+  created?: number; // 上游创建时间戳
+}
 
 // 从服务器获取的任务（扩展 CaptchaInfo）
 export interface CaptchaTask extends CaptchaInfo {
@@ -143,7 +169,6 @@ export interface SubmitResultRequest {
   recognitions?: RecognitionRecord[];
   bypass?: BypassRecord;
   assets?: AssetRecord[];
-
   // 任务原始信息（因为 fetchTasks 的任务不在 D1 中，需要完整传递）
   challenge?: string;
   geetestId?: string;
@@ -151,30 +176,6 @@ export interface SubmitResultRequest {
   captchaType?: CaptchaType;
   riskType?: string;
 }
-
-// ============ 统计相关 ============
-
-// ============ 详细任务结果提交 ============
-
-// 详细任务结果提交请求 (POST /api/tasks/{taskId})
-export interface SubmitTaskDetailedRequest {
-  taskId: string;
-  status: CaptchaResultStatus;
-  result?: GeetestValidateResult;
-  duration?: number;
-  recognition?: RecognitionRecord;
-  bypass?: BypassRecord;
-  assets?: AssetRecord[];
-  // 任务原始信息
-  challenge?: string;
-  geetestId?: string;
-  provider?: Provider;
-  captchaType?: CaptchaType;
-  riskType?: string;
-}
-
-// 详细任务结果提交响应
-export type SubmitTaskDetailedResponse = ApiResponse<null>;
 
 // ============ API 配置 ============
 

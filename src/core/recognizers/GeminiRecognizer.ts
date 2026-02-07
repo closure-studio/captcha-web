@@ -8,8 +8,6 @@ import {
 } from "../../utils/screenshot";
 import {
   GeminiClient,
-  type GeminiClientOptions,
-  type GeminiSlideResponse,
 } from "../../utils/captcha/gemini/client";
 import type {
   CaptchaCollector,
@@ -18,17 +16,14 @@ import type {
   RecognizeResult,
   ReportErrorResult,
 } from "./types";
-import type { CaptchaType } from "../../types/api";
+import type {
+  CaptchaType,
+  ImageCropConfig,
+  RecognitionClientOptions,
+  RecognitionResponse,
+} from "../../types/api";
 
 const logger = createModuleLogger("Gemini Recognizer");
-
-/**
- * 图片裁剪配置
- */
-export interface ImageCropConfig {
-  topCrop: number;
-  bottomCrop: number;
-}
 
 /**
  * Gemini 识别器
@@ -41,7 +36,7 @@ export class GeminiRecognizer implements IRecognizer {
   private clickCropConfig: ImageCropConfig;
 
   constructor(
-    options?: GeminiClientOptions,
+    options?: RecognitionClientOptions,
     slideCropConfig?: Partial<ImageCropConfig>,
     clickCropConfig?: Partial<ImageCropConfig>,
   ) {
@@ -177,7 +172,7 @@ export class GeminiRecognizer implements IRecognizer {
     );
 
     // 调用 Gemini API 识别
-    let result: GeminiSlideResponse;
+    let result: RecognitionResponse;
     if (type === "icon") {
       result = await this.client.solveIcon(croppedImage);
     } else {

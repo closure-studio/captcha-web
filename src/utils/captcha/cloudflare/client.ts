@@ -1,24 +1,12 @@
 import axios from "axios";
 import { createModuleLogger } from "../../logger";
 import { CAPTCHA_SERVER_HOST } from "../../../consts/consts";
+import type {
+  RecognitionResponse,
+  RecognitionClientOptions,
+} from "../../../types/api";
 
 const logger = createModuleLogger("Cloudflare Client");
-
-/**
- * Cloudflare Slide API 响应数据
- */
-export interface CloudflareSlideResponse {
-  success: boolean;
-  elapsed?: number;
-  data: Array<{ x: number; y: number }>;
-}
-
-/**
- * Cloudflare 客户端选项
- */
-export interface CloudflareClientOptions {
-  baseUrl?: string;
-}
 
 /**
  * Cloudflare API 客户端
@@ -26,7 +14,7 @@ export interface CloudflareClientOptions {
 export class CloudflareClient {
   private baseUrl: string;
 
-  constructor(options: CloudflareClientOptions = {}) {
+  constructor(options: RecognitionClientOptions = {}) {
     this.baseUrl = options.baseUrl || CAPTCHA_SERVER_HOST;
 
     if (!this.baseUrl) {
@@ -36,13 +24,8 @@ export class CloudflareClient {
     }
   }
 
-  /**
-   * 识别滑块验证码
-   * @param image Base64 编码的图片或 data URL
-   * @returns 识别结果，包含坐标点数组
-   */
-  async solveSlider(image: string): Promise<CloudflareSlideResponse> {
-    const response = await axios.post<CloudflareSlideResponse>(
+  async solveSlider(image: string): Promise<RecognitionResponse> {
+    const response = await axios.post<RecognitionResponse>(
       `${this.baseUrl}/solver/cloudflare/geetest/slider`,
       { image },
       {
@@ -60,13 +43,8 @@ export class CloudflareClient {
     return response.data;
   }
 
-  /**
-   * 识别图标点选验证码
-   * @param image Base64 编码的图片或 data URL
-   * @returns 识别结果，包含坐标点数组
-   */
-  async solveIcon(image: string): Promise<CloudflareSlideResponse> {
-    const response = await axios.post<CloudflareSlideResponse>(
+  async solveIcon(image: string): Promise<RecognitionResponse> {
+    const response = await axios.post<RecognitionResponse>(
       `${this.baseUrl}/solver/cloudflare/geetest/icon`,
       { image },
       {
@@ -88,9 +66,6 @@ export class CloudflareClient {
 // 默认客户端实例
 let defaultClient: CloudflareClient | null = null;
 
-/**
- * 获取默认客户端实例
- */
 export function getDefaultCloudflareClient(): CloudflareClient {
   if (!defaultClient) {
     defaultClient = new CloudflareClient();
@@ -98,16 +73,10 @@ export function getDefaultCloudflareClient(): CloudflareClient {
   return defaultClient;
 }
 
-/**
- * 识别滑块验证码（使用默认客户端）
- */
-export async function solveSlider(image: string): Promise<CloudflareSlideResponse> {
+export async function solveSlider(image: string): Promise<RecognitionResponse> {
   return getDefaultCloudflareClient().solveSlider(image);
 }
 
-/**
- * 识别图标点选验证码（使用默认客户端）
- */
-export async function solveIcon(image: string): Promise<CloudflareSlideResponse> {
+export async function solveIcon(image: string): Promise<RecognitionResponse> {
   return getDefaultCloudflareClient().solveIcon(image);
 }

@@ -390,7 +390,7 @@ export function GeetestCaptcha(props: GeetestCaptchaProps) {
 
         if (!isMounted || !containerRef.current) return;
 
-        console.log(`Initializing GeeTest ${adapter.version} for task:`, task.taskId);
+        console.log(`Initializing GeeTest ${adapter.version} for task:`, task);
 
         adapter.initCaptcha(
           task,

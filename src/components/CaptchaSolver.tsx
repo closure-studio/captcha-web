@@ -1,10 +1,10 @@
 import { type JSX, memo, useCallback, useMemo } from "react";
+import { geetestV3Adapter, geetestV4Adapter } from "../adapters/geetest/adapters";
 import { captchaConfig } from "../core/config/captcha.config";
 import { GeminiRecognizer } from "../core/recognizers";
 import { ClickStrategy } from "../core/strategies/ClickStrategy";
 import type { CaptchaTask } from "../types/api";
-import GeetestV3Captcha from "./GeetestV3Captcha";
-import { GeetestV4Captcha } from "./GeetestV4Captcha";
+import { GeetestCaptcha } from "./GeetestCaptcha";
 
 interface CaptchaSolverProps {
   task: CaptchaTask;
@@ -34,6 +34,8 @@ export const CaptchaSolver = memo(function CaptchaSolver(
     onComplete?.(task.containerId);
   }, [onComplete, task.containerId]);
 
+  const adapter = task.riskType ? geetestV4Adapter : geetestV3Adapter;
+
   console.log("Rendering Captcha Component for task:", task);
 
   return (
@@ -41,19 +43,12 @@ export const CaptchaSolver = memo(function CaptchaSolver(
       id={task.containerId}
       className="captcha-isolation-container w-[340px] h-[386px]"
     >
-      {!task.riskType ? (
-        <GeetestV3Captcha
-          task={task}
-          strategy={strategy}
-          onComplete={handleComplete}
-        />
-      ) : (
-        <GeetestV4Captcha
-          task={task}
-          strategy={strategy}
-          onComplete={handleComplete}
-        />
-      )}
+      <GeetestCaptcha
+        task={task}
+        strategy={strategy}
+        adapter={adapter}
+        onComplete={handleComplete}
+      />
     </div>
   );
 });

@@ -3,5 +3,4 @@ export * from "./ui";
 
 // Export new unified components
 export { CaptchaSolver } from "./CaptchaSolver";
-export { GeetestV4Captcha } from "./GeetestV4Captcha";
-export { GeetestV3Captcha } from "./GeetestV3Captcha";
+export { GeetestCaptcha } from "./GeetestCaptcha";

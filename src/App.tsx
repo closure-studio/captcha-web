@@ -30,7 +30,7 @@ function RefreshBanner() {
 }
 
 function App() {
-  const { tasks } = useCaptchaQueue();
+  const { tasks, completeTask } = useCaptchaQueue();
 
   return (
     <div className="min-h-screen bg-slate-50 p-2">
@@ -39,15 +39,14 @@ function App() {
 
       <div className="flex flex-wrap gap-x-4 gap-y-8 mt-32 overflow-y-auto">
         {tasks.map((task, index) => {
-          // 空槽位或已完成的任务显示占位组件
           if (task === null) {
             return <EmptySlot key={`empty-${index}`} index={index} />;
           }
-          // 有效任务显示 CaptchaSolver
           return (
             <CaptchaSolver
               key={task.containerId}
               task={task}
+              completeTask={completeTask}
             />
           );
         })}

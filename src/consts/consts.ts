@@ -19,8 +19,8 @@ export const TASK_QUEUE_LENGTH = 16;
 
 // ============ Timing (ms) ============
 
-/** 自动刷新间隔 - 8 小时 */
-export const AUTO_REFRESH_INTERVAL = 8 * 60 * 60 * 1000;
+/** 自动刷新间隔 - 16 小时 */
+export const AUTO_REFRESH_INTERVAL = 16 * 60 * 60 * 1000;
 /** 等待任务完成的最大时间 - 5 分钟 */
 export const MAX_WAIT_TIME = 5 * 60 * 1000;
 /** 等待任务完成的检查间隔 */

@@ -37,7 +37,7 @@ function App() {
       <SystemInfo />
       <RefreshBanner />
 
-      <div className="flex flex-wrap gap-x-4 gap-y-8 mt-16 overflow-y-auto">
+      <div className="flex flex-wrap gap-x-4 gap-y-8 mt-32 overflow-y-auto">
         {tasks.map((task, index) => {
           // 空槽位或已完成的任务显示占位组件
           if (task === null) {

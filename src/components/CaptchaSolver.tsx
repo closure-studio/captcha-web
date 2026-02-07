@@ -30,7 +30,8 @@ export const CaptchaSolver = memo(function CaptchaSolver(
   }, [task.type]);
 
   const renderCaptchaComponent = () => {
-    if (task.geetestId === "" && task.riskType === "") {
+    console.log("Rendering Captcha Component for task:", task);
+    if (!task.riskType) {
       return (
         <GeetestV3Captcha
           task={task}

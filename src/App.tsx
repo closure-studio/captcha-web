@@ -9,7 +9,7 @@ import { useAutoRefresh } from "./hooks/useAutoRefresh";
 import { TASK_QUEUE_LENGTH } from "./types/api";
 
 // 自动刷新间隔（毫秒）- 1 小时
-const AUTO_REFRESH_INTERVAL = 1 * 60 * 60 * 1000;
+const AUTO_REFRESH_INTERVAL = 8 * 60 * 60 * 1000;
 // 等待任务完成的最大时间（毫秒）- 5分钟
 const MAX_WAIT_TIME = 5 * 60 * 1000;
 

@@ -1,3 +1,3 @@
-export { useCaptchaQueue } from "./useCaptchaQueue";
+export { useAppContext as useCaptchaQueue } from "../contexts/appContext";
 export type { UseCaptchaQueueOptions, UseCaptchaQueueReturn } from "./useCaptchaQueue";
-export { useAutoRefresh } from "./useAutoRefresh";
+export { useAutoRefresh } from "./useAutoRefreshManager";

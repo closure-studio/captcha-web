@@ -38,9 +38,6 @@ export interface Point {
 
 // ============ 任务相关 ============
 
-// 任务队列固定长度
-export const TASK_QUEUE_LENGTH = 16;
-
 // 从服务器获取的任务（扩展 CaptchaInfo）
 export interface CaptchaTask extends CaptchaInfo {
   taskId: string; // 本地生成的 UUID（服务器不返回 taskId）

@@ -3,12 +3,12 @@ import { geetestV3Adapter, geetestV4Adapter } from "../adapters/geetest/adapters
 import { captchaConfig } from "../core/config/captcha.config";
 import { GeminiRecognizer } from "../core/recognizers";
 import { ClickStrategy } from "../core/strategies/ClickStrategy";
+import { useCaptchaQueue } from "../hooks";
 import type { CaptchaTask } from "../types/api";
 import { GeetestCaptcha } from "./GeetestCaptcha";
 
 interface CaptchaSolverProps {
   task: CaptchaTask;
-  onComplete?: (containerId: string) => void;
 }
 
 /**
@@ -18,7 +18,8 @@ interface CaptchaSolverProps {
 export const CaptchaSolver = memo(function CaptchaSolver(
   props: CaptchaSolverProps,
 ): JSX.Element {
-  const { task, onComplete } = props;
+  const { task } = props;
+  const { completeTask } = useCaptchaQueue();
 
   const strategy = useMemo(() => {
     const { click } = captchaConfig;
@@ -29,10 +30,9 @@ export const CaptchaSolver = memo(function CaptchaSolver(
     });
   }, [task.type]);
 
-  // 将 onComplete(containerId) 绑定为无参回调，传递给子组件
   const handleComplete = useCallback(() => {
-    onComplete?.(task.containerId);
-  }, [onComplete, task.containerId]);
+    completeTask(task.containerId);
+  }, [completeTask, task.containerId]);
 
   const adapter = task.riskType ? geetestV4Adapter : geetestV3Adapter;
 

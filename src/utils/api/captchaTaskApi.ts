@@ -7,11 +7,12 @@ import type {
   SubmitTaskDetailedResponse,
 } from "../../types/api";
 import { captchaServerApi } from "./captchaServerApi";
+import { CAPTCHA_SERVER_HOST } from "../../consts/consts";
 
 
 // 默认配置
 const DEFAULT_CONFIG: CaptchaApiConfig = {
-  baseUrl: import.meta.env.VITE_CAPTCHA_SERVER_HOST || "http://localhost:8787",
+  baseUrl: CAPTCHA_SERVER_HOST,
   pollInterval: 5000,
   maxConcurrent: 4,
 };

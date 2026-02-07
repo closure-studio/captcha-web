@@ -1,5 +1,6 @@
 import { createModuleLogger } from "../../utils/logger";
-import { recordElapsed } from "../../utils/providerStats";
+import { recordElapsed } from "../../hooks/useSystemInfoManager";
+import { DEFAULT_SLIDE_CROP, DEFAULT_CLICK_CROP } from "../../consts/consts";
 import {
   captureScreenshot,
   logScreenshotPreview,
@@ -27,16 +28,6 @@ export interface ImageCropConfig {
   bottomCrop: number;
 }
 
-const DEFAULT_SLIDE_CROP_CONFIG: ImageCropConfig = {
-  topCrop: 70,
-  bottomCrop: 110,
-};
-
-const DEFAULT_CLICK_CROP_CONFIG: ImageCropConfig = {
-  topCrop: 30,
-  bottomCrop: 125,
-};
-
 /**
  * Nvidia 识别器
  * 支持滑块验证码和点选验证码，带图片预处理（裁剪高度）
@@ -53,8 +44,8 @@ export class NvidiaRecognizer implements IRecognizer {
     clickCropConfig?: Partial<ImageCropConfig>,
   ) {
     this.client = new NvidiaClient(options);
-    this.slideCropConfig = { ...DEFAULT_SLIDE_CROP_CONFIG, ...slideCropConfig };
-    this.clickCropConfig = { ...DEFAULT_CLICK_CROP_CONFIG, ...clickCropConfig };
+    this.slideCropConfig = { ...DEFAULT_SLIDE_CROP, ...slideCropConfig };
+    this.clickCropConfig = { ...DEFAULT_CLICK_CROP, ...clickCropConfig };
   }
 
   setSlideCropConfig(cropConfig: Partial<ImageCropConfig>): void {

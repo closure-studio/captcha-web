@@ -1,10 +1,8 @@
 import axios from "axios";
 import { createModuleLogger } from "../../logger";
+import { CAPTCHA_SERVER_HOST } from "../../../consts/consts";
 
 const logger = createModuleLogger("Nvidia Client");
-
-// Nvidia API 使用 VITE_CAPTCHA_SERVER_HOST
-const CAPTCHA_SERVER_HOST = import.meta.env.VITE_CAPTCHA_SERVER_HOST as string;
 
 /**
  * Nvidia Slide API 响应数据

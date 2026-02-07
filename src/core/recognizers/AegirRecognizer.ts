@@ -1,5 +1,5 @@
 import { createModuleLogger } from "../../utils/logger";
-import { recordElapsed } from "../../utils/providerStats";
+import { recordElapsed } from "../../hooks/useSystemInfoManager";
 import {
   captureScreenshot,
   logScreenshotPreview,

@@ -1,14 +1,3 @@
-/**
- * Captcha Server API Client
- *
- * 基于上游 API 文档实现的服务端 API 封装
- * 使用 VITE_CAPTCHA_SERVER_HOST 作为基础 URL
- *
- * API 端点:
- * - GET /captcha/reqs?limit={limit} - 获取验证码请求
- * - POST /captcha/resp - 提交验证码结果
- */
-
 import axios, { type AxiosInstance } from "axios";
 import type {
   ApiResponse,
@@ -22,12 +11,9 @@ import type {
 } from "../../types/api";
 import type { CaptchaInfo } from "../../types/type";
 import { createModuleLogger } from "../logger";
+import { CAPTCHA_SERVER_HOST } from "../../consts/consts";
 
 const logger = createModuleLogger("CaptchaServerApi");
-
-// 获取服务器基础 URL
-const CAPTCHA_SERVER_HOST =
-  import.meta.env.VITE_CAPTCHA_SERVER_HOST || "http://localhost:8787";
 
 // 上游 API 响应格式
 interface UpstreamApiResponse<T> {

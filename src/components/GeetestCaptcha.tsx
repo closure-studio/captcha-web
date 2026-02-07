@@ -4,18 +4,18 @@ import { captchaConfig } from "../core/config/captcha.config";
 import type { CaptchaCollector } from "../core/recognizers";
 import type { ISolveStrategy, SolveResult } from "../core/strategies";
 import type {
+  AssetRecord,
+  BypassRecord,
   CaptchaTask,
   GeetestValidateResult,
   RecognitionRecord,
-  BypassRecord,
-  AssetRecord,
   RecognizerName,
 } from "../types/api";
 import type { GeeTestAdapter, GeeTestError, GeeTestInstance } from "../types/geetest";
 import { captchaTaskApi } from "../utils/api/captchaTaskApi";
 import { uploadCaptchaData } from "../utils/captcha/upload";
-import { recordCaptchaResult } from "../utils/captchaStats";
-import { generateContainerId, getErrorMessage } from "../utils/helpers";
+import { recordCaptchaResult } from "../hooks/useSystemInfoManager";
+import { getErrorMessage } from "../utils/helpers";
 import { createModuleLogger } from "../utils/logger";
 import {
   ErrorDisplay,
@@ -89,7 +89,7 @@ export function GeetestCaptcha(props: GeetestCaptchaProps) {
   const { task, strategy, adapter, onComplete } = props;
 
   // Refs
-  const innerContainerId = useRef(generateContainerId());
+  const innerContainerId = useRef(crypto.randomUUID());
   const containerRef = useRef<HTMLDivElement>(null);
   const startTimeRef = useRef<number>(Date.now());
   const refs = useRef<CaptchaRefs>({

@@ -3,8 +3,7 @@
 
 
 import axios from 'axios';
-// Use environment variable for the captcha server host
-const CAPTCHA_SERVER_HOST = import.meta.env.VITE_CAPTCHA_SERVER_HOST as string;
+import { CAPTCHA_SERVER_HOST } from '../../consts/consts';
 
 export interface R2UploadFile {
   path: string;

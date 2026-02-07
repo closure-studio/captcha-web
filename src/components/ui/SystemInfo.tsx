@@ -1,60 +1,10 @@
-import { useEffect, useState } from "react";
-import { useAutoRefresh } from "../../hooks/useAutoRefresh";
+import { useState } from "react";
+import { useAppContext } from "../../contexts/appContext";
 import {
-  enableLogging,
   disableLogging,
+  enableLogging,
   isLoggingEnabled,
 } from "../../utils/logger";
-import {
-  getProviderStats,
-  subscribe,
-  type ProviderStatsEntry,
-} from "../../utils/providerStats";
-import {
-  getCaptchaStats,
-  subscribeCaptchaStats,
-  type CaptchaStatsData,
-} from "../../utils/captchaStats";
-
-declare const __APP_VERSION__: string;
-
-interface MemoryInfo {
-  usedJSHeapSize: number;
-  totalJSHeapSize: number;
-  jsHeapSizeLimit: number;
-}
-
-interface PerformanceWithMemory extends Performance {
-  memory?: MemoryInfo;
-}
-
-interface NavigatorWithDeviceMemory extends Navigator {
-  deviceMemory?: number;
-}
-
-interface NetworkInformation {
-  effectiveType?: string;
-  downlink?: number;
-  rtt?: number;
-}
-
-interface NavigatorWithConnection extends Navigator {
-  connection?: NetworkInformation;
-}
-
-interface SystemInfoData {
-  version: string;
-  cpuCores: number;
-  deviceMemory: number | null;
-  jsHeapUsed: number | null;
-  jsHeapTotal: number | null;
-  online: boolean;
-  networkType: string | null;
-  networkSpeed: number | null;
-  language: string;
-  screen: string;
-  dpr: number;
-}
 
 function formatTime(ms: number): string {
   if (ms >= 1000) {
@@ -82,39 +32,21 @@ function formatCountdown(ms: number): string {
   return `${seconds}s`;
 }
 
-function getSystemInfo(): SystemInfoData {
-  const perf = performance as PerformanceWithMemory;
-  const navMem = navigator as NavigatorWithDeviceMemory;
-  const navConn = navigator as NavigatorWithConnection;
-
-  return {
-    version: __APP_VERSION__,
-    cpuCores: navigator.hardwareConcurrency || 0,
-    deviceMemory: navMem.deviceMemory ?? null,
-    jsHeapUsed: perf.memory ? perf.memory.usedJSHeapSize : null,
-    jsHeapTotal: perf.memory ? perf.memory.totalJSHeapSize : null,
-    online: navigator.onLine,
-    networkType: navConn.connection?.effectiveType ?? null,
-    networkSpeed: navConn.connection?.downlink ?? null,
-    language: navigator.language,
-    screen: `${screen.width}x${screen.height}`,
-    dpr: window.devicePixelRatio,
-  };
-}
-
 /**
  * 阻止事件冒泡（防止 GeeTest float 模式误判为点击外部关闭）
  */
 const stopPropagation = (e: React.SyntheticEvent) => e.stopPropagation();
 
 export function SystemInfo() {
-  const { refreshCountdown, isPreparingRefresh } = useAutoRefresh();
-  const [info, setInfo] = useState<SystemInfoData>(getSystemInfo);
+  const {
+    system,
+    providerStats,
+    captchaStats,
+    refreshCountdown,
+    isPreparingRefresh,
+  } = useAppContext();
+
   const [loggingOn, setLoggingOn] = useState(isLoggingEnabled);
-  const [providerStats, setProviderStats] =
-    useState<ProviderStatsEntry[]>(getProviderStats);
-  const [captchaStats, setCaptchaStats] =
-    useState<CaptchaStatsData>(getCaptchaStats);
 
   const handleLoggingToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
     const checked = e.target.checked;
@@ -126,35 +58,17 @@ export function SystemInfo() {
     setLoggingOn(checked);
   };
 
-  // 每秒更新动态信息（内存、网络状态）
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setInfo(getSystemInfo());
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // 订阅 provider stats 更新
-  useEffect(() => {
-    return subscribe(() => setProviderStats(getProviderStats()));
-  }, []);
-
-  // 订阅 captcha stats 更新
-  useEffect(() => {
-    return subscribeCaptchaStats(() => setCaptchaStats(getCaptchaStats()));
-  }, []);
-
   const items: string[] = [
-    `CPU ${info.cpuCores}C`,
-    info.deviceMemory !== null ? `RAM ~${info.deviceMemory}GB` : null,
-    info.jsHeapUsed !== null && info.jsHeapTotal !== null
-      ? `Heap ${formatMB(info.jsHeapUsed)}/${formatMB(info.jsHeapTotal)}MB`
+    `CPU ${system.cpuCores}C`,
+    system.deviceMemory !== null ? `RAM ~${system.deviceMemory}GB` : null,
+    system.jsHeapUsed !== null && system.jsHeapTotal !== null
+      ? `Heap ${formatMB(system.jsHeapUsed)}/${formatMB(system.jsHeapTotal)}MB`
       : null,
-    `${info.screen} @${info.dpr}x`,
-    info.language,
-    info.online
-      ? info.networkType
-        ? `${info.networkType}${info.networkSpeed ? ` ${info.networkSpeed}Mbps` : ""}`
+    `${system.screen} @${system.dpr}x`,
+    system.language,
+    system.online
+      ? system.networkType
+        ? `${system.networkType}${system.networkSpeed ? ` ${system.networkSpeed}Mbps` : ""}`
         : "online"
       : "offline",
   ].filter((v): v is string => v !== null);
@@ -163,7 +77,7 @@ export function SystemInfo() {
     <div className="fixed top-0 left-0 right-0 bg-slate-800 text-slate-300 text-sm px-4 z-50 font-mono">
       {/* 第一行：系统信息 */}
       <div className="flex items-center gap-3 py-1.5 flex-wrap">
-        <span className="font-semibold text-white">v{info.version}</span>
+        <span className="font-semibold text-white">v{system.version}</span>
         {items.map((item, i) => (
           <span key={i} className="flex items-center gap-3">
             <span className="text-slate-600">|</span>
@@ -190,8 +104,12 @@ export function SystemInfo() {
         </label>
         {/* 刷新倒计时 */}
         <span className="text-slate-600">|</span>
-        <span className={isPreparingRefresh ? "text-yellow-400" : "text-slate-400"}>
-          {isPreparingRefresh ? "等待刷新..." : `刷新 ${formatCountdown(refreshCountdown)}`}
+        <span
+          className={isPreparingRefresh ? "text-yellow-400" : "text-slate-400"}
+        >
+          {isPreparingRefresh
+            ? "等待刷新..."
+            : `刷新 ${formatCountdown(refreshCountdown)}`}
         </span>
       </div>
       {/* 第二行：Provider Stats */}
@@ -234,15 +152,29 @@ export function SystemInfo() {
         <span className="text-slate-600">|</span>
         <span>
           成功率{" "}
-          <span className={captchaStats.total > 0 ? (captchaStats.success / captchaStats.total >= 0.8 ? "text-green-400" : captchaStats.success / captchaStats.total >= 0.5 ? "text-yellow-400" : "text-red-400") : "text-slate-500"}>
-            {captchaStats.total > 0 ? `${((captchaStats.success / captchaStats.total) * 100).toFixed(1)}%` : "-"}
+          <span
+            className={
+              captchaStats.total > 0
+                ? captchaStats.success / captchaStats.total >= 0.8
+                  ? "text-green-400"
+                  : captchaStats.success / captchaStats.total >= 0.5
+                    ? "text-yellow-400"
+                    : "text-red-400"
+                : "text-slate-500"
+            }
+          >
+            {captchaStats.total > 0
+              ? `${((captchaStats.success / captchaStats.total) * 100).toFixed(1)}%`
+              : "-"}
           </span>
         </span>
         <span className="text-slate-600">|</span>
         <span>
           平均耗时{" "}
           <span className="text-blue-400">
-            {captchaStats.avgDuration > 0 ? formatTime(captchaStats.avgDuration) : "-"}
+            {captchaStats.avgDuration > 0
+              ? formatTime(captchaStats.avgDuration)
+              : "-"}
           </span>
         </span>
       </div>

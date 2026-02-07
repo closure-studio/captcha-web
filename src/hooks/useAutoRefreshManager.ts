@@ -1,16 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useAppContext } from "../contexts/appContext";
+import type { AutoRefreshContextValue } from "../contexts/appContext";
+import { WAIT_CHECK_INTERVAL } from "../consts/consts";
 import { createModuleLogger } from "../utils/logger";
-import { AutoRefreshContext } from "./autoRefreshContext";
-
-export type { AutoRefreshContextValue } from "./autoRefreshContext";
 
 const logger = createModuleLogger("AutoRefresh");
 
-// 等待任务完成的检查间隔（毫秒）
-const WAIT_CHECK_INTERVAL = 1000;
-
-export interface AutoRefreshProviderProps {
-  children: React.ReactNode;
+export interface UseAutoRefreshManagerOptions {
   /** 自动刷新间隔（毫秒） */
   refreshInterval: number;
   /** 等待任务完成的最大时间（毫秒） */
@@ -21,13 +17,12 @@ export interface AutoRefreshProviderProps {
   onStopPolling: () => void;
 }
 
-export function AutoRefreshProvider({
-  children,
+export function useAutoRefreshManager({
   refreshInterval,
   maxWaitTime,
   getActiveTaskCount,
   onStopPolling,
-}: AutoRefreshProviderProps) {
+}: UseAutoRefreshManagerOptions): AutoRefreshContextValue {
   const [isPreparingRefresh, setIsPreparingRefresh] = useState(false);
   const [refreshCountdown, setRefreshCountdown] = useState(refreshInterval);
 
@@ -126,15 +121,14 @@ export function AutoRefreshProvider({
     };
   }, [refreshInterval, startRefreshProcess]);
 
-  return (
-    <AutoRefreshContext.Provider
-      value={{
-        refreshCountdown,
-        isPreparingRefresh,
-        triggerRefresh: startRefreshProcess,
-      }}
-    >
-      {children}
-    </AutoRefreshContext.Provider>
-  );
+  return {
+    refreshCountdown,
+    isPreparingRefresh,
+    triggerRefresh: startRefreshProcess,
+  };
+}
+
+// Context consumer hook
+export function useAutoRefresh(): AutoRefreshContextValue {
+  return useAppContext();
 }

@@ -1,10 +1,8 @@
 import axios from "axios";
 import { createModuleLogger } from "../../../utils/logger";
+import { TTSHITU_API_URL } from "../../../consts/consts";
 
 const logger = createModuleLogger("TTShitu Client");
-
-// TTShitu API 基础 URL
-const TTSHITU_API_URL = "http://api.ttshitu.com";
 
 // TTShitu 账号信息
 const TTSHITU_USERNAME = "";

@@ -108,7 +108,7 @@ function App() {
               <CaptchaSolver
                 key={task.containerId}
                 task={task}
-                onComplete={() => handleComplete(task.containerId)}
+                onComplete={handleComplete}
               />
             );
           })}

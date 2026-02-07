@@ -1,14 +1,14 @@
-import { type JSX, memo, useMemo } from "react";
+import { type JSX, memo, useCallback, useMemo } from "react";
 import { captchaConfig } from "../core/config/captcha.config";
 import { GeminiRecognizer } from "../core/recognizers";
 import { ClickStrategy } from "../core/strategies/ClickStrategy";
 import type { CaptchaTask } from "../types/api";
-import { GeetestV4Captcha } from "./GeetestV4Captcha";
 import GeetestV3Captcha from "./GeetestV3Captcha";
+import { GeetestV4Captcha } from "./GeetestV4Captcha";
 
 interface CaptchaSolverProps {
   task: CaptchaTask;
-  onComplete?: () => void;
+  onComplete?: (containerId: string) => void;
 }
 
 /**
@@ -29,32 +29,31 @@ export const CaptchaSolver = memo(function CaptchaSolver(
     });
   }, [task.type]);
 
-  const renderCaptchaComponent = () => {
-    console.log("Rendering Captcha Component for task:", task);
-    if (!task.riskType) {
-      return (
-        <GeetestV3Captcha
-          task={task}
-          strategy={strategy}
-          onComplete={onComplete}
-        />
-      );
-    }
-    return (
-      <GeetestV4Captcha
-        task={task}
-        strategy={strategy}
-        onComplete={onComplete}
-      />
-    );
-  };
+  // 将 onComplete(containerId) 绑定为无参回调，传递给子组件
+  const handleComplete = useCallback(() => {
+    onComplete?.(task.containerId);
+  }, [onComplete, task.containerId]);
+
+  console.log("Rendering Captcha Component for task:", task);
 
   return (
     <div
       id={task.containerId}
       className="captcha-isolation-container w-[340px] h-[386px]"
     >
-      {renderCaptchaComponent()}
+      {!task.riskType ? (
+        <GeetestV3Captcha
+          task={task}
+          strategy={strategy}
+          onComplete={handleComplete}
+        />
+      ) : (
+        <GeetestV4Captcha
+          task={task}
+          strategy={strategy}
+          onComplete={handleComplete}
+        />
+      )}
     </div>
   );
 });

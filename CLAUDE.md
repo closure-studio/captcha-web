@@ -1,142 +1,197 @@
 # CLAUDE.md
 
-This file provides guidance for Claude Code when working with this codebase.
-
 ## Project Overview
 
-This is a React-based captcha solving system that integrates with GeeTest v4 captcha service. It supports multiple captcha types (slide, icon click, word click) and multiple recognition providers (TTShitu, Gemini, Aegir). The system includes a task queue management feature for handling multiple concurrent captcha solving tasks.
+Closure Captcha Web — 基于 React 的 GeeTest 验证码自动化求解系统。支持 GeeTest V3/V4，支持滑块、文字点选、图标点选三种验证码类型，集成五种识别提供商（Gemini、Cloudflare、Nvidia、TTShitu、Aegir）。内置任务队列管理，支持 16 并发任务的轮询、求解和结果上报。部署到 Cloudflare Pages。
 
 ## Tech Stack
 
-- **Framework**: React 18 + TypeScript
-- **Build Tool**: Vite
-- **Styling**: Tailwind CSS
-- **HTTP Client**: Axios + Fetch API
+- **Framework**: React 19 + TypeScript 5.9
+- **Build Tool**: Vite 7
+- **Styling**: Tailwind CSS 4
+- **HTTP Client**: Axios
 - **Screenshot**: modern-screenshot
+- **Utilities**: es-toolkit
+- **Deployment**: Cloudflare Pages (wrangler)
+
+## Common Commands
+
+```bash
+pnpm dev          # 开发服务器（--host）
+pnpm build        # tsc -b && vite build
+pnpm lint         # eslint
+npx tsc --noEmit  # 类型检查
+```
+
+## Environment Variables
+
+```env
+VITE_CAPTCHA_SERVER_HOST=https://your-server.com   # 验证码服务器地址（识别 API + 任务 API + R2 存储）
+```
 
 ## Directory Structure
 
 ```
 src/
-├── core/                           # Core business logic (framework-agnostic)
-│   ├── bypass/                     # Bypass execution runners
-│   │   ├── SlideRunner.ts          # Slider drag simulation
-│   │   ├── ClickRunner.ts          # Click event simulation
-│   │   ├── types.ts                # Bypass interfaces (SlideConfig, ClickConfig)
-│   │   └── index.ts
-│   ├── recognizers/                # Image recognition (API calls only)
-│   │   ├── TTShituRecognizer.ts    # TTShitu OCR service (slide + click)
-│   │   ├── GeminiRecognizer.ts     # Gemini AI service (with image cropping)
-│   │   ├── AegirRecognizer.ts      # Aegir service (word/icon click)
-│   │   ├── types.ts                # IRecognizer interface, CaptchaType, Point
-│   │   └── index.ts
-│   ├── strategies/                 # Solve strategies (recognizer + runner)
-│   │   ├── SlideStrategy.ts        # Slide captcha solving
-│   │   ├── ClickStrategy.ts        # Click captcha solving
-│   │   ├── types.ts                # ISolveStrategy, SolveContext, SolveResult
-│   │   └── index.ts
-│   ├── config/
-│   │   └── captcha.config.ts       # Centralized configuration
-│   └── registry.ts                 # Dynamic provider registration
-├── adapters/
-│   └── geetest/                    # GeeTest-specific adapters
-│       ├── GeetestAdapter.ts       # DOM operations, element finding
-│       ├── GeetestSDK.ts           # SDK script loading
-│       └── index.ts
+├── adapters/geetest/               # GeeTest SDK 适配层
+│   ├── adapters.ts                  # V3/V4 适配器实例（geetestV3Adapter, geetestV4Adapter）
+│   ├── GeetestAdapter.ts            # DOM 元素查找、自动点击按钮
+│   ├── GeetestSDK.ts                # SDK 脚本动态加载
+│   └── index.ts
 ├── components/
-│   ├── CaptchaSolver.tsx           # Entry component (strategy selection)
-│   ├── GeetestV4Captcha.tsx        # Unified GeeTest v4 component (lifecycle)
+│   ├── CaptchaSolver.tsx            # 入口组件：选择策略，渲染 GeetestCaptcha
+│   ├── GeetestCaptcha.tsx           # 核心组件：SDK 初始化、生命周期、求解/重试/上报
 │   ├── ui/
-│   │   ├── StatusComponents.tsx    # Loading, error, status UI
-│   │   ├── SystemInfo.tsx          # Real-time system info bar
-│   │   ├── TaskControls.tsx        # Task fetch/polling controls
+│   │   ├── StatusComponents.tsx     # Spinner、状态指示器、错误展示
+│   │   ├── SystemInfo.tsx           # 顶部系统信息栏（版本/CPU/内存/网络/统计）
 │   │   └── index.ts
 │   └── index.ts
+├── contexts/
+│   ├── appContext.ts                # AppContext 定义 + useAppContext hook
+│   └── AppProvider.tsx              # 顶层 Provider：组合 queue + autoRefresh + systemInfo
+├── core/
+│   ├── bypass/                      # DOM 事件执行器
+│   │   ├── SlideRunner.ts           # 滑块拖拽模拟（鼠标+触摸事件）
+│   │   ├── ClickRunner.ts           # 坐标点击模拟（含确认按钮点击）
+│   │   ├── types.ts                 # SlideConfig, ClickConfig, BypassContext, BypassResult
+│   │   └── index.ts
+│   ├── recognizers/                 # 图像识别器（只调 API，返回坐标）
+│   │   ├── GeminiRecognizer.ts      # Gemini AI（slide/word/icon，带裁剪预处理）
+│   │   ├── CloudflareRecognizer.ts  # Cloudflare Workers AI（slide/icon，带裁剪）
+│   │   ├── NvidiaRecognizer.ts      # Nvidia AI（slide/icon，带裁剪）
+│   │   ├── TTShituRecognizer.ts     # TTShitu OCR（slide gap + click 1-4）
+│   │   ├── AegirRecognizer.ts       # Aegir（word/icon click）
+│   │   ├── types.ts                 # IRecognizer, RecognizeRequest/Result, CaptchaCollector
+│   │   └── index.ts
+│   ├── strategies/                  # 求解策略（识别器 + 执行器）
+│   │   ├── SlideStrategy.ts         # 截图 → 识别 → findElements → SlideRunner
+│   │   ├── ClickStrategy.ts         # 截图 → 识别 → findElements → ClickRunner
+│   │   ├── types.ts                 # ISolveStrategy, SolveContext, SolveResult
+│   │   └── index.ts
+│   ├── config/captcha.config.ts     # 集中配置（延迟、步数、裁剪参数、重试次数）
+│   └── registry.ts                  # 动态注册表（recognizers + strategies）
 ├── hooks/
-│   ├── useCaptchaQueue.ts          # Task queue management hook
-│   └── index.ts
-├── utils/
-│   ├── api/
-│   │   └── captchaTaskApi.ts       # Task API client (with mock support)
-│   ├── captcha/                    # Recognition API clients
-│   │   ├── ttshitu/client.ts       # TTShitu API
-│   │   ├── gemini/client.ts        # Gemini API
-│   │   ├── aegir/word/client.ts    # Aegir API
-│   │   └── upload.ts               # R2 upload utility
-│   ├── r2/r2Helper.ts              # Cloudflare R2 helper
-│   ├── screenshot.ts               # DOM screenshot utility
-│   ├── logger.ts                   # Namespaced logging utility
-│   ├── helpers.ts                  # General helpers (generateContainerId, etc.)
+│   ├── useCaptchaQueue.ts           # 任务队列 hook（轮询、填充空槽、完成任务）
+│   ├── useAutoRefreshManager.ts     # 自动刷新 hook（定时刷新页面释放内存）
+│   ├── useSystemInfoManager.ts      # 系统信息 hook + 模块级统计（Provider 耗时 + 验证码成功率）
 │   └── index.ts
 ├── types/
-│   ├── type.ts                     # CaptchaInfo interface
-│   ├── captcha.ts                  # Component props types
-│   ├── api.ts                      # API types (CaptchaTask, responses)
-│   └── geetest4.d.ts               # GeeTest v4 SDK types
-├── consts/
-│   └── consts.ts                   # Global constants (CAPTCHA_ID, URLs)
-├── App.tsx                         # Main app with task queue integration
-├── App.css                         # Styling
-└── main.tsx                        # React entry point
+│   ├── api.ts                       # 核心类型：CaptchaTask, TaskQueue, SubmitResultRequest, Point...
+│   ├── geetest.ts                   # 统一 GeeTest 接口：GeeTestAdapter, GeeTestInstance, GeeTestError
+│   ├── geetest3.d.ts                # V3 SDK 全局类型声明
+│   └── geetest4.d.ts                # V4 SDK 全局类型声明
+├── consts/consts.ts                 # 全局常量（URL、队列长度、定时、裁剪默认值）
+├── utils/
+│   ├── api/
+│   │   ├── captchaServerApi.ts      # 底层 Axios 客户端（fetchTasks, submitResult, submitTaskDetailed）
+│   │   ├── captchaTaskApi.ts        # 高层 API 封装（单例）
+│   │   └── index.ts
+│   ├── captcha/                     # 识别 API 客户端（纯 HTTP 调用）
+│   │   ├── gemini/client.ts         # Gemini: solveSlider, solveIcon, solveWord
+│   │   ├── cloudflare/client.ts     # Cloudflare: solveSlider, solveIcon
+│   │   ├── nvidia/client.ts         # Nvidia: solveSlider, solveIcon
+│   │   ├── ttshitu/client.ts        # TTShitu: predict, recognizeGapX, reportError
+│   │   ├── aegir/word/client.ts     # Aegir: selectCaptcha, parsePoints
+│   │   └── upload.ts               # R2 数据上传（截图 + metadata）
+│   ├── r2/r2Helper.ts               # Cloudflare R2 上传工具
+│   ├── screenshot.ts                # DOM 截图 + 调试绘制（竖线/点选标记）
+│   ├── logger.ts                    # 日志系统（dev 自动启用，prod 静默全局 console）
+│   └── helpers.ts                   # getErrorMessage 等通用工具
+├── App.tsx                          # 主界面：SystemInfo + RefreshBanner + 任务网格
+├── App.css                          # @import "tailwindcss"
+└── main.tsx                         # 入口：AppProvider → App
 ```
 
-## Architecture Patterns
+## Architecture
 
-### 1. Strategy Pattern
-Strategies (`SlideStrategy`, `ClickStrategy`) combine a recognizer with a runner to solve captchas end-to-end.
+### GeeTest V3/V4 Adapter Pattern
+
+通过 `GeeTestAdapter` 接口统一 V3 和 V4 的差异：
 
 ```typescript
-// Slide solving with Gemini
-const strategy = new SlideStrategy(
-  new GeminiRecognizer(undefined, { topCrop: 70, bottomCrop: 110 }),
-  { xOffset: -10, slideSteps: 30 }
-);
+interface GeeTestAdapter {
+  version: "v3" | "v4";
+  loadScript: () => Promise<void>;
+  initCaptcha: (task, onError, callback) => void;
+  getGeetestId: (task) => string | undefined;
+  getEffectDeps: (task) => unknown[];  // React useEffect 依赖
+}
+```
 
-// Click solving with TTShitu
-const strategy = new ClickStrategy(
-  new TTShituRecognizer(),
-  CaptchaType.WORLD,
-  { delay: { min: 400, max: 600 } }
-);
+`CaptchaSolver` 根据 `task.riskType` 是否存在自动选择 V4 或 V3 适配器。
 
+### Strategy Pattern
+
+Strategies 组合 Recognizer + Runner：
+
+```typescript
+// 当前默认使用 GeminiRecognizer + ClickStrategy
+const strategy = new ClickStrategy(new GeminiRecognizer(), task.type, { delay, debug });
 await strategy.solve({ container, containerId, collector });
 ```
 
-### 2. Separation of Concerns
-- **Recognizers**: Only call APIs, return coordinates
-- **Runners**: Only execute DOM events (slide/click)
-- **Strategies**: Orchestrate the full flow (screenshot → recognize → bypass → collect)
+### Solve Flow
 
-### 3. Registry Pattern
-Dynamic registration replaces factory methods:
-```typescript
-registry.registerRecognizer("gemini", new GeminiRecognizer());
-registry.registerStrategy("slide", new SlideStrategy(...));
+```
+App (轮询获取任务) → CaptchaSolver (选策略+适配器) → GeetestCaptcha (SDK 初始化)
+  → onReady → autoClick → 等待图片加载 → strategy.solve()
+    → recognizer.capture() 截图
+    → recognizer.recognize() 调 API 获取坐标
+    → drawDebugOverlay() 绘制调试标记
+    → runner.execute() 模拟 DOM 事件
+  → GeeTest SDK 校验 → onSuccess/onFail
+  → submitTaskResult() 上报结果 + uploadCaptchaData() 上传截图到 R2
+  → onComplete() 释放槽位
 ```
 
-### 4. Task Queue Pattern
-The `useCaptchaQueue` hook manages concurrent captcha tasks:
-```typescript
-const {
-  tasks,
-  isLoading,
-  fetchTasks,
-  completeTask,
-  startPolling,
-  stopPolling,
-  isPolling,
-} = useCaptchaQueue({
-  maxConcurrent: 4,
-  pollInterval: 10000,
-  taskTimeout: 2 * 60 * 1000,
-  useMock: true,
-});
+### Task Queue
+
+`useCaptchaQueue` 管理固定长度 16 槽位的任务队列（`TaskQueue` 是 16 元素元组类型）。轮询填充空槽，任务完成时置空对应槽位。
+
+### Context Architecture
+
 ```
+AppProvider
+├── useCaptchaQueue      → tasks, fetchTasks, completeTask, polling...
+├── useAutoRefreshManager → refreshCountdown, isPreparingRefresh, triggerRefresh
+└── useSystemInfoManager  → system info, provider stats, captcha stats
+```
+
+所有状态通过 `AppContext` 提供给子组件，消费通过 `useAppContext()` hook。
+
+### Data Collection
+
+每次求解会收集截图和元数据，上传到 R2：
+```
+captchas/{provider}/{type}/{containerId}/
+├── original.png    # 原始截图
+├── cropped.png     # 裁剪后（Gemini/Cloudflare/Nvidia）
+├── marked.png      # 标记坐标点
+└── data.json       # 元数据（solver, geetestId, challenge, validateResult...）
+```
+
+### Result Reporting
+
+每次求解完成后同时上报两个端点：
+1. `POST /captcha/resp` — 提交验证凭证给上游服务器
+2. `POST /api/tasks/{taskId}` — 提交详细记录（recognition, bypass, assets）到统计服务器
 
 ## Key Interfaces
 
-### IRecognizer
 ```typescript
+// 验证码任务
+interface CaptchaTask extends CaptchaInfo {
+  taskId: string;           // 本地 UUID
+  containerId: string;      // = taskId，DOM 容器 ID
+  provider: "geetest_v4" | "geetest_v3";
+  type: "slide" | "word" | "icon";
+  challenge: string;
+  geetestId?: string;       // V4
+  gt?: string;              // V3
+  riskType?: string;        // V4 风控类型
+}
+
+// 识别器
 interface IRecognizer {
   readonly name: string;
   recognize(request: RecognizeRequest, collector?: CaptchaCollector): Promise<RecognizeResult>;
@@ -144,222 +199,52 @@ interface IRecognizer {
   capture(containerId: string): Promise<ScreenshotResult | null>;
 }
 
-interface RecognizeResult {
-  success: boolean;
-  captchaId: string;
-  points: Point[];        // Coordinates for solving
-  message: string;
-}
-```
-
-### ISolveStrategy
-```typescript
+// 求解策略
 interface ISolveStrategy {
   readonly type: "slide" | "click";
   solve(context: SolveContext): Promise<SolveResult>;
 }
-
-interface SolveContext {
-  container: HTMLElement;
-  containerId: string;
-  collector: CaptchaCollector;
-}
-```
-
-### CaptchaTask (API)
-```typescript
-interface CaptchaTask extends CaptchaInfo {
-  taskId: string;
-  createdAt?: number;
-}
-
-type CaptchaResultStatus = "success" | "failed" | "timeout" | "error";
-```
-
-## Solve Flow
-
-### High-Level Flow
-```
-1. App fetches tasks via useCaptchaQueue
-   ↓
-2. CaptchaSolver selects strategy based on captchaInfo.type
-   ↓
-3. GeetestV4Captcha initializes SDK and waits for ready
-   ↓
-4. strategy.solve() executes:
-   a) Capture screenshot
-   b) Send to recognizer API
-   c) Execute runner with coordinates
-   d) Collect data
-   ↓
-5. GeeTest validates (onSuccess/onFail)
-   ↓
-6. completeTask() reports result to server
-```
-
-### Slide Strategy Flow
-```
-SlideStrategy.solve()
-├─ recognizer.capture()
-├─ recognizer.recognize()
-├─ findGeeTestElements()
-├─ drawDebugOverlay()
-├─ SlideRunner.execute()
-│  ├─ Calculate canvas→DOM scale
-│  ├─ Calculate slide distance (with xOffset)
-│  └─ Perform mouse/touch events
-└─ return { recognizeResult, bypassResult }
-```
-
-### Click Strategy Flow
-```
-ClickStrategy.solve()
-├─ recognizer.capture()
-├─ recognizer.recognize()
-├─ drawDebugOverlay()
-├─ ClickRunner.execute()
-│  ├─ Scale coordinates
-│  ├─ For each point: dispatch events
-│  └─ Click commit button
-└─ return { recognizeResult, bypassResult }
-```
-
-## Common Commands
-
-```bash
-# Development
-npm run dev
-
-# Build
-npm run build
-
-# Type check
-npx tsc --noEmit
-
-# Lint
-npm run lint
-```
-
-## Environment Variables
-
-```env
-VITE_GEETEST_CAPTCHA_ID=your-captcha-id
-VITE_API_BASE_URL=http://localhost:3000
-VITE_TASK_API_URL=http://localhost:8080/api
-VITE_CAPTCHA_SERVER_HOST=https://your-server.com
-VITE_TTSHITU_USERNAME=your-username
-VITE_TTSHITU_PASSWORD=your-password
 ```
 
 ## Configuration
 
-Centralized in `src/core/config/captcha.config.ts`:
+`src/core/config/captcha.config.ts` 集中管理所有参数：
 
-```typescript
-const captchaConfig = {
-  slide: {
-    ttshitu: { xOffset: -10, slideSteps: 30, stepDelay: { min: 15, max: 25 } },
-    gemini: { xOffset: -10, slideSteps: 30, cropConfig: { topCrop: 70, bottomCrop: 110 } }
-  },
-  click: {
-    delay: { min: 400, max: 600 }
-  },
-  delays: {
-    screenshot: 1000,
-    autoClick: 1000,
-    imageLoad: 2000,
-    retryWait: 3000
-  },
-  maxRetryCount: 5
-};
-```
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| slide.xOffset | -10 | 滑块 X 轴偏移校正 |
+| slide.slideSteps | 30 | 滑动模拟步数 |
+| click.delay | 400-600ms | 点击间隔 |
+| delays.screenshot | 1000ms | 截图前等待 |
+| delays.autoClick | 1000ms | 自动点击延迟 |
+| delays.imageLoad | 2000ms | 图片加载等待 |
+| delays.retryWait | 3000ms | 重试等待 |
+| maxRetryCount | 5 | 最大重试次数 |
+
+裁剪默认值（`consts.ts`）：
+- Slide: topCrop=70, bottomCrop=110
+- Click: topCrop=30, bottomCrop=125
 
 ## Adding a New Recognizer
 
-1. Create `src/core/recognizers/NewRecognizer.ts`:
-```typescript
-export class NewRecognizer implements IRecognizer {
-  readonly name = "New";
+1. 创建 API 客户端 `src/utils/captcha/{name}/client.ts`
+2. 创建识别器 `src/core/recognizers/{Name}Recognizer.ts`，实现 `IRecognizer`
+3. 在 `src/core/recognizers/index.ts` 导出
+4. 在 `CaptchaSolver.tsx` 中使用
 
-  async recognize(request: RecognizeRequest, collector?: CaptchaCollector): Promise<RecognizeResult> {
-    // Call your API
-  }
+## API Endpoints (Server-side)
 
-  async reportError(captchaId: string): Promise<ReportErrorResult> {
-    // Report error if supported
-  }
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/captcha/reqs?limit=N` | 获取待处理任务（获取后自动删除） |
+| POST | `/captcha/resp` | 提交验证凭证（V3/V4 格式不同） |
+| POST | `/api/tasks/{taskId}` | 提交详细求解记录 |
+| POST | `/store/upload` | 批量上传文件到 R2 |
+| POST | `/solver/{provider}/geetest/{type}` | 识别 API（slider/icon/word） |
 
-  async capture(containerId: string): Promise<ScreenshotResult | null> {
-    // Use captureScreenshot utility
-  }
-}
-```
+## Code Style
 
-2. Export from `src/core/recognizers/index.ts`
-
-3. Use with a strategy:
-```typescript
-const strategy = new SlideStrategy(new NewRecognizer());
-```
-
-## Adding a New Captcha Type
-
-1. If it's a new bypass method, add a runner in `src/core/bypass/`
-2. Create a new strategy in `src/core/strategies/`
-3. Update `CaptchaSolver.tsx` to handle the new type in strategy selection
-
-## Code Style Notes
-
-- Use Chinese comments for business logic explanations
-- Use English for interface/type names and code structure
-- Logging uses `createModuleLogger()` for namespaced output
-- All coordinates are processed as canvas coordinates, then scaled to DOM
-
-## Debugging
-
-Enable debug mode in config:
-```typescript
-{ debug: true }
-```
-
-This will:
-- Log coordinate calculations
-- Show image previews in console
-- Output step-by-step bypass progress
-
-## Data Collection
-
-The system captures:
-- Original screenshot
-- Cropped/processed images
-- Recognition results
-- Metadata (solver, geetestId, challenge, duration, etc.)
-
-Data is uploaded to Cloudflare R2 at:
-```
-captchas/{provider}/{type}/{containerId}/
-  ├── original.png
-  ├── cropped.png (if applicable)
-  ├── marked.png
-  └── data.json
-```
-
-## Task Queue System
-
-The task queue (`useCaptchaQueue` hook) provides:
-- **Polling**: Configurable interval for fetching new tasks
-- **Concurrency Control**: Limits concurrent tasks (default: 2)
-- **Timeout Handling**: Auto-completes timed-out tasks
-- **Duration Tracking**: Records solve time for analytics
-- **Mock Support**: Built-in mock data for development
-
-### API Endpoints
-```
-GET  /api/tasks                    # Fetch pending tasks
-POST /api/tasks/{taskId}/result    # Submit solve result
-```
-
-### Task Lifecycle
-```
-Fetch → In Progress → Success/Failed/Timeout → Report Result
-```
+- 业务逻辑注释使用中文
+- 接口/类型名使用英文
+- 日志使用 `createModuleLogger()` 命名空间
+- 所有坐标以 canvas 坐标处理，运行时按 DOM 实际尺寸缩放

@@ -29,17 +29,26 @@ import {
 
 const logger = createModuleLogger("GeetestCaptcha");
 
-// ============ V3 面板捕获 ============
+// ============ V3 面板捕获（互斥锁保证串行） ============
 
-/**
- * V3 float 模式：SDK 将弹窗面板挂载到 body。
- * 通过 onShow 回调在弹窗显示时，将面板移入任务容器。
- */
-function moveV3PanelsToContainer(targetContainer: HTMLElement): void {
-  const panels = document.querySelectorAll<HTMLElement>(
+// 同一时间只有一个任务执行 点击→等待→移动，避免面板归属混乱
+let v3PanelMutex: Promise<void> = Promise.resolve();
+
+function snapshotBodyGeetestPanels(): Set<HTMLElement> {
+  return new Set(
+    document.querySelectorAll<HTMLElement>('body > div[class*="geetest"]'),
+  );
+}
+
+function moveNewV3Panels(
+  before: Set<HTMLElement>,
+  targetContainer: HTMLElement,
+): void {
+  const current = document.querySelectorAll<HTMLElement>(
     'body > div[class*="geetest"]',
   );
-  for (const node of panels) {
+  for (const node of current) {
+    if (before.has(node)) continue;
     if (node.classList.contains("geetest_fullpage_ghost")) {
       node.remove();
       continue;
@@ -396,18 +405,27 @@ export function GeetestCaptcha(props: GeetestCaptchaProps) {
 
     const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-    // 1. 点击按钮
-    await delay(delays.autoClick);
-    if (!containerRef.current) return;
-    autoClickCaptchaButton(containerRef.current);
-
-    // 2. V3: 等待 SDK 挂载面板到 body，然后移入容器
+    // 1. V3: 互斥锁串行化 快照→点击→等待→移动
     if (adapter.version === "v3") {
+      let unlockMutex: () => void;
+      const prevMutex = v3PanelMutex;
+      v3PanelMutex = new Promise((r) => { unlockMutex = r; });
+      await prevMutex;
+
+      const beforePanels = snapshotBodyGeetestPanels();
+      await delay(delays.autoClick);
+      if (!containerRef.current) { unlockMutex!(); return; }
+      autoClickCaptchaButton(containerRef.current);
       await delay(1000);
       const outerContainer = document.getElementById(task.containerId);
       if (outerContainer) {
-        moveV3PanelsToContainer(outerContainer);
+        moveNewV3Panels(beforePanels, outerContainer);
       }
+      unlockMutex!();
+    } else {
+      await delay(delays.autoClick);
+      if (!containerRef.current) return;
+      autoClickCaptchaButton(containerRef.current);
     }
 
     // 3. 等待图片加载后求解

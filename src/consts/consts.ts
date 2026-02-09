@@ -15,7 +15,7 @@ export const AEGIR_API_URL = "https://captcha-aegir.dltest.workers.dev";
 
 // ============ Queue ============
 
-export const TASK_QUEUE_LENGTH = 1;
+export const TASK_QUEUE_LENGTH = 8;
 
 // ============ Timing (ms) ============
 

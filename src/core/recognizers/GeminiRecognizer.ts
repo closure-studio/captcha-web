@@ -1,14 +1,19 @@
-import { createModuleLogger } from "../../utils/logger";
+import { DEFAULT_CLICK_CROP, DEFAULT_SLIDE_CROP } from "../../consts/consts";
 import { recordElapsed } from "../../hooks/useSystemInfoManager";
-import { DEFAULT_SLIDE_CROP, DEFAULT_CLICK_CROP } from "../../consts/consts";
-import {
-  captureScreenshot,
-  logScreenshot,
-  type ScreenshotResult,
-} from "../../utils/screenshot";
+import type {
+  CaptchaType,
+  ImageCropConfig,
+  RecognitionClientOptions,
+  RecognitionResponse,
+} from "../../types/api";
 import {
   GeminiClient,
 } from "../../utils/captcha/gemini/client";
+import { createModuleLogger } from "../../utils/logger";
+import {
+  captureScreenshot,
+  type ScreenshotResult
+} from "../../utils/screenshot";
 import type {
   CaptchaCollector,
   IRecognizer,
@@ -16,12 +21,6 @@ import type {
   RecognizeResult,
   ReportErrorResult,
 } from "./types";
-import type {
-  CaptchaType,
-  ImageCropConfig,
-  RecognitionClientOptions,
-  RecognitionResponse,
-} from "../../types/api";
 
 const logger = createModuleLogger("Gemini Recognizer");
 
@@ -105,6 +104,7 @@ export class GeminiRecognizer implements IRecognizer {
     );
 
     collector?.addCapture("cropped", croppedImage);
+    console.log("slideCropConfig:", this.slideCropConfig);
 
     // 调试输出：裁剪后的图片
     const croppedDimensions = await this.getImageDimensions(croppedImage);
@@ -218,7 +218,6 @@ export class GeminiRecognizer implements IRecognizer {
   async capture(containerId: string): Promise<ScreenshotResult | null> {
     try {
       const result = await captureScreenshot(containerId);
-      logScreenshot(result);
       return result;
     } catch (error) {
       logger.error("截图失败:", error);

@@ -17,8 +17,8 @@ export const slideConfig = {
     xOffset: -10,
     slideSteps: 30,
     cropConfig: {
-      topCrop: 70,
-      bottomCrop: 110,
+      topCrop: 0,
+      bottomCrop: 0,
     },
   },
 } as const;

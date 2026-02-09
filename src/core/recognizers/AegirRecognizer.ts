@@ -1,11 +1,10 @@
-import { createModuleLogger } from "../../utils/logger";
 import { recordElapsed } from "../../hooks/useSystemInfoManager";
+import { AegirClient, type AegirOptions } from "../../utils/captcha/aegir/word/client";
+import { createModuleLogger } from "../../utils/logger";
 import {
   captureScreenshot,
-  logScreenshot,
-  type ScreenshotResult,
+  type ScreenshotResult
 } from "../../utils/screenshot";
-import { AegirClient, type AegirOptions } from "../../utils/captcha/aegir/word/client";
 import type {
   IRecognizer,
   RecognizeRequest,
@@ -70,7 +69,6 @@ export class AegirRecognizer implements IRecognizer {
   async capture(containerId: string): Promise<ScreenshotResult | null> {
     try {
       const result = await captureScreenshot(containerId);
-      logScreenshot(result);
       return result;
     } catch (error) {
       logger.error("截图失败:", error);

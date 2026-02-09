@@ -11,7 +11,11 @@ import type {
   RecognitionRecord,
   RecognizerName,
 } from "../types/api";
-import type { GeeTestAdapter, GeeTestError, GeeTestInstance } from "../types/geetest";
+import type {
+  GeeTestAdapter,
+  GeeTestError,
+  GeeTestInstance,
+} from "../types/geetest";
 import { captchaTaskApi } from "../utils/api/captchaTaskApi";
 import { uploadCaptchaData } from "../utils/captcha/upload";
 import { recordCaptchaResult } from "../hooks/useSystemInfoManager";
@@ -25,9 +29,34 @@ import {
 
 const logger = createModuleLogger("GeetestCaptcha");
 
+// ============ V3 面板捕获 ============
+
+/**
+ * V3 float 模式：SDK 将弹窗面板挂载到 body。
+ * 通过 onShow 回调在弹窗显示时，将面板移入任务容器。
+ */
+function moveV3PanelsToContainer(targetContainer: HTMLElement): void {
+  const panels = document.querySelectorAll<HTMLElement>(
+    'body > div[class*="geetest"]',
+  );
+  for (const node of panels) {
+    if (node.classList.contains("geetest_fullpage_ghost")) {
+      node.remove();
+      continue;
+    }
+    targetContainer.appendChild(node);
+    logger.log("V3: 弹窗面板已移入容器", node.className);
+  }
+}
+
 // ============ Types ============
 
-export type CaptchaStatus = "idle" | "solving" | "success" | "error" | "retrying";
+export type CaptchaStatus =
+  | "idle"
+  | "solving"
+  | "success"
+  | "error"
+  | "retrying";
 
 export interface GeetestCaptchaProps {
   task: CaptchaTask;
@@ -47,7 +76,10 @@ interface CaptchaRefs {
 // ============ Collector Hook ============
 
 interface FullCaptchaCollector extends CaptchaCollector {
-  getArgs: () => { captures: Record<string, string>; metadata: Record<string, unknown> };
+  getArgs: () => {
+    captures: Record<string, string>;
+    metadata: Record<string, unknown>;
+  };
   reset: () => void;
 }
 
@@ -63,10 +95,13 @@ function useCaptchaCollector(): FullCaptchaCollector {
     metadataRef.current[key] = value;
   }, []);
 
-  const getArgs = useCallback(() => ({
-    captures: { ...capturesRef.current },
-    metadata: { ...metadataRef.current },
-  }), []);
+  const getArgs = useCallback(
+    () => ({
+      captures: { ...capturesRef.current },
+      metadata: { ...metadataRef.current },
+    }),
+    [],
+  );
 
   const reset = useCallback(() => {
     capturesRef.current = {};
@@ -134,7 +169,9 @@ export function GeetestCaptcha(props: GeetestCaptchaProps) {
 
         // 识别记录
         recognition = {
-          recognizerName: (collector.getArgs().metadata.recognizerName as RecognizerName) || "Gemini",
+          recognizerName:
+            (collector.getArgs().metadata.recognizerName as RecognizerName) ||
+            "Gemini",
           success: recognizeResult.success,
           attemptSeq: refs.current.attemptSeq,
           captchaId: recognizeResult.captchaId,
@@ -225,10 +262,24 @@ export function GeetestCaptcha(props: GeetestCaptchaProps) {
     // Wait for animation/render
     await new Promise((resolve) => setTimeout(resolve, delays.screenshot));
 
+    // V3: 截图目标是挑战区 holder (geetest_embed)，取最后一个
+    let screenshotContainerId = task.containerId;
+    if (adapter.version === "v3") {
+      const holders = parentContainer.querySelectorAll<HTMLElement>(
+        'div[class*="geetest_holder"][class*="geetest_embed"]',
+      );
+      const holder = holders.length > 0 ? holders[holders.length - 1] : null;
+      if (holder) {
+        const holderId = `geetest-holder-${task.containerId}`;
+        holder.id = holderId;
+        screenshotContainerId = holderId;
+      }
+    }
+
     // Delegate solving to the strategy
     const solveResult = await strategy.solve({
       container: parentContainer,
-      containerId: task.containerId,
+      containerId: screenshotContainerId,
       collector,
     });
 
@@ -257,7 +308,10 @@ export function GeetestCaptcha(props: GeetestCaptchaProps) {
     collector.setMetadata("riskType", task.riskType);
     collector.setMetadata("validateResult", result);
     if (refs.current.solveResult) {
-      collector.setMetadata("solveResult", refs.current.solveResult.recognizeResult);
+      collector.setMetadata(
+        "solveResult",
+        refs.current.solveResult.recognizeResult,
+      );
     }
 
     uploadCaptchaData({
@@ -310,7 +364,14 @@ export function GeetestCaptcha(props: GeetestCaptchaProps) {
         onComplete?.();
       }
     },
-    [autoSolveCaptcha, onComplete, maxRetryCount, delays.retryWait, submitTaskResult, adapter.version],
+    [
+      autoSolveCaptcha,
+      onComplete,
+      maxRetryCount,
+      delays.retryWait,
+      submitTaskResult,
+      adapter.version,
+    ],
   );
 
   // Handle GeeTest error
@@ -327,34 +388,51 @@ export function GeetestCaptcha(props: GeetestCaptchaProps) {
   );
 
   // Handle captcha ready
-  const handleReady = useCallback(() => {
+  const handleReady = useCallback(async () => {
     setIsLoading(false);
     refs.current.retryCount = 0;
     refs.current.attemptSeq = 0;
-
     if (!containerRef.current) return;
 
-    setTimeout(() => {
-      if (!containerRef.current) return;
-      autoClickCaptchaButton(containerRef.current);
+    const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-      setTimeout(async () => {
-        try {
-          setStatus("solving");
-          setStatusMessage("识别中...");
-          refs.current.recognitionId = await autoSolveCaptcha();
-        } catch (error) {
-          logger.error("识别失败:", getErrorMessage(error, "识别失败"));
-          setStatus("error");
-          setStatusMessage(getErrorMessage(error, "识别失败"));
-          await submitTaskResult("error", {
-            errorMessage: getErrorMessage(error, "识别失败"),
-          });
-          onComplete?.();
-        }
-      }, delays.imageLoad);
-    }, delays.autoClick);
-  }, [autoSolveCaptcha, onComplete, delays.autoClick, delays.imageLoad, submitTaskResult]);
+    // 1. 点击按钮
+    await delay(delays.autoClick);
+    if (!containerRef.current) return;
+    autoClickCaptchaButton(containerRef.current);
+
+    // 2. V3: 等待 SDK 挂载面板到 body，然后移入容器
+    if (adapter.version === "v3") {
+      await delay(1000);
+      const outerContainer = document.getElementById(task.containerId);
+      if (outerContainer) {
+        moveV3PanelsToContainer(outerContainer);
+      }
+    }
+
+    // 3. 等待图片加载后求解
+    await delay(delays.imageLoad);
+    try {
+      setStatus("solving");
+      setStatusMessage("识别中...");
+      refs.current.recognitionId = await autoSolveCaptcha();
+    } catch (error) {
+      logger.error("识别失败:", getErrorMessage(error, "识别失败"));
+      setStatus("error");
+      setStatusMessage(getErrorMessage(error, "识别失败"));
+      await submitTaskResult("error", {
+        errorMessage: getErrorMessage(error, "识别失败"),
+      });
+      onComplete?.();
+    }
+  }, [
+    autoSolveCaptcha,
+    onComplete,
+    delays,
+    submitTaskResult,
+    adapter.version,
+    task.containerId,
+  ]);
 
   // Handle captcha close
   const handleClose = useCallback(() => {
@@ -415,7 +493,12 @@ export function GeetestCaptcha(props: GeetestCaptchaProps) {
         );
       } catch (err) {
         if (isMounted) {
-          setLoadError(getErrorMessage(err, `Failed to initialize GeeTest ${adapter.version}`));
+          setLoadError(
+            getErrorMessage(
+              err,
+              `Failed to initialize GeeTest ${adapter.version}`,
+            ),
+          );
           setIsLoading(false);
           logger.error(`GeeTest ${adapter.version} initialization error:`, err);
         }

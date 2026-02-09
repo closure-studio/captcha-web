@@ -128,8 +128,7 @@ export class CaptchaServerApi {
 
     // 本地生成 UUID 作为 taskId，containerId 等于 taskId
     const taskId = crypto.randomUUID();
-
-    return {
+    const task: CaptchaTask = {
       taskId,
       containerId: taskId, // containerId 等于 taskId
       challenge: info.challenge,
@@ -141,6 +140,10 @@ export class CaptchaServerApi {
       created: info.created,
       createdAt: info.created,
     };
+    if (task.gt === "f23ae14ba3a5bd01d1d65288422dbf97") {
+      task.type = "slide";
+    }
+    return task;
   }
 
   /**
@@ -310,5 +313,4 @@ export const captchaServerApi = new CaptchaServerApi();
 export { CaptchaServerApi as CaptchaServerApiClass };
 
 // 导出类型供外部使用
-  export type { SubmitV3ResultBody, SubmitV4ResultBody };
-
+export type { SubmitV3ResultBody, SubmitV4ResultBody };

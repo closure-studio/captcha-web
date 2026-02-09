@@ -1,14 +1,13 @@
+import { recordElapsed } from "../../hooks/useSystemInfoManager";
 import {
   TTShituClient,
   TTShituTypeId,
   type TTShituOptions,
 } from "../../utils/captcha/ttshitu/client";
 import { createModuleLogger } from "../../utils/logger";
-import { recordElapsed } from "../../hooks/useSystemInfoManager";
 import {
   captureScreenshot,
-  logScreenshot,
-  type ScreenshotResult,
+  type ScreenshotResult
 } from "../../utils/screenshot";
 import type {
   IRecognizer,
@@ -134,7 +133,6 @@ export class TTShituRecognizer implements IRecognizer {
   async capture(containerId: string): Promise<ScreenshotResult | null> {
     try {
       const result = await captureScreenshot(containerId);
-      logScreenshot(result);
       return result;
     } catch (error) {
       logger.error("截图失败:", error);

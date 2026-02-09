@@ -15,7 +15,7 @@ export const AEGIR_API_URL = "https://captcha-aegir.dltest.workers.dev";
 
 // ============ Queue ============
 
-export const TASK_QUEUE_LENGTH = 16;
+export const TASK_QUEUE_LENGTH = 1;
 
 // ============ Timing (ms) ============
 
@@ -33,5 +33,5 @@ export const MAX_COUNT_PER_PROVIDER = 10000;
 
 // ============ Crop Defaults ============
 
-export const DEFAULT_SLIDE_CROP = { topCrop: 70, bottomCrop: 110 };
+export const DEFAULT_SLIDE_CROP = { topCrop: 10, bottomCrop: 110 };
 export const DEFAULT_CLICK_CROP = { topCrop: 30, bottomCrop: 125 };

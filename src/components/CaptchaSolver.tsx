@@ -1,10 +1,14 @@
 import { type JSX, memo, useCallback, useMemo } from "react";
-import { geetestV3Adapter, geetestV4Adapter } from "../adapters/geetest/adapters";
+import {
+  geetestV3Adapter,
+  geetestV4Adapter,
+} from "../adapters/geetest/adapters";
 import { captchaConfig } from "../core/config/captcha.config";
 import { GeminiRecognizer } from "../core/recognizers";
 import { ClickStrategy } from "../core/strategies/ClickStrategy";
 import type { CaptchaTask } from "../types/api";
 import { GeetestCaptcha } from "./GeetestCaptcha";
+import { SlideStrategy } from "../core/strategies";
 
 interface CaptchaSolverProps {
   task: CaptchaTask;
@@ -21,13 +25,17 @@ export const CaptchaSolver = memo(function CaptchaSolver(
   const { task, completeTask } = props;
 
   const strategy = useMemo(() => {
-    const { click } = captchaConfig;
+    const { click, slide } = captchaConfig;
+    if (task.type === "slide") {
+      const recognizer = new GeminiRecognizer();
+      return new SlideStrategy(recognizer, slide.gemini);
+    }
     const recognizer = new GeminiRecognizer();
     return new ClickStrategy(recognizer, task.type, {
       delay: { ...click.delay },
       debug: true,
     });
-  }, [task.type]);
+  }, [task]);
 
   const handleComplete = useCallback(() => {
     completeTask(task.containerId);

@@ -1,15 +1,14 @@
-import { createModuleLogger } from "../../utils/logger";
+import { DEFAULT_CLICK_CROP, DEFAULT_SLIDE_CROP } from "../../consts/consts";
 import { recordElapsed } from "../../hooks/useSystemInfoManager";
-import { DEFAULT_SLIDE_CROP, DEFAULT_CLICK_CROP } from "../../consts/consts";
 import type { ImageCropConfig, RecognitionClientOptions } from "../../types/api";
-import {
-  captureScreenshot,
-  logScreenshot,
-  type ScreenshotResult,
-} from "../../utils/screenshot";
 import {
   NvidiaClient,
 } from "../../utils/captcha/nvidia/client";
+import { createModuleLogger } from "../../utils/logger";
+import {
+  captureScreenshot,
+  type ScreenshotResult
+} from "../../utils/screenshot";
 import type {
   CaptchaCollector,
   IRecognizer,
@@ -190,7 +189,6 @@ export class NvidiaRecognizer implements IRecognizer {
   async capture(containerId: string): Promise<ScreenshotResult | null> {
     try {
       const result = await captureScreenshot(containerId);
-      logScreenshot(result);
       return result;
     } catch (error) {
       logger.error("截图失败:", error);

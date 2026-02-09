@@ -4,7 +4,7 @@ import { DEFAULT_SLIDE_CROP, DEFAULT_CLICK_CROP } from "../../consts/consts";
 import type { ImageCropConfig, RecognitionClientOptions } from "../../types/api";
 import {
   captureScreenshot,
-  logScreenshotPreview,
+  logScreenshot,
   type ScreenshotResult,
 } from "../../utils/screenshot";
 import {
@@ -190,7 +190,7 @@ export class CloudflareRecognizer implements IRecognizer {
   async capture(containerId: string): Promise<ScreenshotResult | null> {
     try {
       const result = await captureScreenshot(containerId);
-      logScreenshotPreview(result, 400, 300);
+      logScreenshot(result);
       return result;
     } catch (error) {
       logger.error("截图失败:", error);

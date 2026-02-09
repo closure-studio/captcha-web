@@ -189,43 +189,23 @@ async function createCanvasFromDataUrl(
 }
 
 /**
- * 在控制台输出截图预览（用于调试）
- * 注意：此方法会在 console 中保留 data URL 引用，可能影响内存
- * 建议仅在调试时使用，生产环境会自动禁用日志
+ * 在控制台输出截图原图
  * @param result - 截图结果
- * @param maxWidth - 最大显示宽度，默认 400
- * @param maxHeight - 最大显示高度，默认 300
+ * @param label - 日志标签，默认 "截图内容:"
  */
-export function logScreenshotPreview(
+export function logScreenshot(
   result: ScreenshotResult,
-  maxWidth: number = 400,
-  maxHeight: number = 300,
+  label: string = "截图内容:",
 ): void {
-  const { canvas } = result;
-  const displayWidth = Math.min(canvas.width / 2, maxWidth / 2);
-  const displayHeight = Math.min(canvas.height / 2, maxHeight / 2);
+  const { canvas, dataUrl } = result;
 
-  // 使用较小的缩略图 URL 而非完整尺寸
-  const thumbCanvas = document.createElement("canvas");
-  const scale = Math.min(maxWidth / canvas.width, maxHeight / canvas.height, 1);
-  thumbCanvas.width = Math.floor(canvas.width * scale);
-  thumbCanvas.height = Math.floor(canvas.height * scale);
-  const ctx = thumbCanvas.getContext("2d");
-  if (ctx) {
-    ctx.drawImage(canvas, 0, 0, thumbCanvas.width, thumbCanvas.height);
-  }
-  const thumbUrl = thumbCanvas.toDataURL("image/jpeg", 0.6);
-  // 清理缩略图 canvas
-  thumbCanvas.width = 0;
-  thumbCanvas.height = 0;
-
-  logger.log("截图预览:");
+  logger.log(label);
   logger.log(
     "%c ",
     `
     font-size: 1px;
-    padding: ${displayHeight}px ${displayWidth}px;
-    background: url(${thumbUrl}) no-repeat;
+    padding: ${canvas.height}px ${canvas.width}px;
+    background: url(${dataUrl}) no-repeat;
     background-size: contain;
   `,
   );
@@ -336,15 +316,14 @@ export function drawDebugOverlay(
   // 输出带标记的截图到控制台
   const markedDataUrl = markedCanvas.toDataURL("image/png");
   const typeLabel = type === "vertical-line" ? "竖线" : "点选";
-  logger.log(`${providerName}: 识别结果可视化（${typeLabel}标记）:`);
-  logger.log(
-    "%c ",
-    `
-    font-size: 1px;
-    padding: ${canvas.height / 2}px ${canvas.width / 2}px;
-    background: url(${markedDataUrl}) no-repeat;
-    background-size: contain;
-  `,
+
+  logScreenshot(
+    {
+      base64: markedDataUrl.split(",")[1],
+      canvas: markedCanvas,
+      dataUrl: markedDataUrl,
+    },
+    `${providerName}: 识别结果可视化（${typeLabel}标记）:`,
   );
 
   return markedCanvas;

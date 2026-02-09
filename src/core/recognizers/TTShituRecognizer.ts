@@ -7,7 +7,7 @@ import { createModuleLogger } from "../../utils/logger";
 import { recordElapsed } from "../../hooks/useSystemInfoManager";
 import {
   captureScreenshot,
-  logScreenshotPreview,
+  logScreenshot,
   type ScreenshotResult,
 } from "../../utils/screenshot";
 import type {
@@ -134,7 +134,7 @@ export class TTShituRecognizer implements IRecognizer {
   async capture(containerId: string): Promise<ScreenshotResult | null> {
     try {
       const result = await captureScreenshot(containerId);
-      logScreenshotPreview(result, 400, 300);
+      logScreenshot(result);
       return result;
     } catch (error) {
       logger.error("截图失败:", error);

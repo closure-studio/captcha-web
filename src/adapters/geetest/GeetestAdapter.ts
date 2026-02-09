@@ -44,21 +44,25 @@ function isGeeTestBox(el: HTMLElement): boolean {
  * 我们需要通过 holder 中的某些标识来关联正确的 geetest_box
  */
 export function findGeeTestElements(container: HTMLElement): GeeTestElements {
-  const holder = container.querySelector<HTMLElement>(
-    'div[class*="geetest_holder"]',
-  );
+  // 优先查找挑战区 holder (V3 geetest_embed)，其次查找普通 holder (V4)
+  const holder =
+    container.querySelector<HTMLElement>(
+      'div[class*="geetest_holder"][class*="geetest_embed"]',
+    ) ||
+    container.querySelector<HTMLElement>(
+      'div[class*="geetest_holder"]',
+    );
 
   const boxWrap = holder?.querySelector<HTMLElement>(
     'div[class*="geetest_box_wrap"]',
   );
 
-  // 首先尝试在 container 内部查找 geetest_box
+  // 首先尝试在 container 内部查找 geetest_box (V4)
   let geeTestBox = container.querySelector<HTMLElement>(
     'div.geetest_box:not([class*="geetest_box_wrap"]):not([class*="geetest_captcha"])',
   );
 
   if (!geeTestBox) {
-    // 在 container 内查找
     const containerElements = container.querySelectorAll<HTMLElement>(
       'div[class*="geetest_box"]',
     );
@@ -70,11 +74,7 @@ export function findGeeTestElements(container: HTMLElement): GeeTestElements {
     }
   }
 
-  // 如果 container 内找不到，可能是 GeeTest SDK 将其挂载到了 body
-  // 尝试通过 holder 的 ID 或其他关联方式查找
   if (!geeTestBox && holder) {
-    // GeeTest 通常会给 holder 一个唯一的 class 或 ID，尝试查找关联的 box
-    // 查找 holder 内的 boxWrap，然后找其中的 geetest_box
     if (boxWrap) {
       geeTestBox = boxWrap.querySelector<HTMLElement>(
         'div[class*="geetest_box"]:not([class*="geetest_box_wrap"])',
@@ -82,38 +82,36 @@ export function findGeeTestElements(container: HTMLElement): GeeTestElements {
     }
   }
 
-  // 最后的 fallback：在全局查找，但只在没有其他选择时使用
-  // 这种情况下多个验证码可能会冲突
-  if (!geeTestBox) {
-    logger.warn(
-      "未在 container 内找到 geetest_box，尝试全局查找（可能导致多验证码冲突）",
-    );
-    const allElements = document.querySelectorAll<HTMLElement>(
-      'div[class*="geetest_box"]',
-    );
-    for (const el of allElements) {
-      if (isGeeTestBox(el)) {
-        geeTestBox = el;
-        break;
-      }
-    }
-  }
+  // V3 没有 geetest_box，所有元素在 holder 内
+  const searchRoot = geeTestBox || holder;
 
-  const sliderContainer = geeTestBox?.querySelector<HTMLElement>(
+  const sliderContainer = searchRoot?.querySelector<HTMLElement>(
     'div[class*="geetest_slider"]',
   );
-  const sliderBtn = sliderContainer?.querySelector<HTMLElement>(
-    'div[class*="geetest_btn"]',
-  );
-  const sliderTrack = sliderContainer?.querySelector<HTMLElement>(
-    'div[class*="geetest_track"]',
-  );
+  const sliderBtn =
+    sliderContainer?.querySelector<HTMLElement>(
+      'div[class*="geetest_slider_button"]',
+    ) ||
+    sliderContainer?.querySelector<HTMLElement>(
+      'div[class*="geetest_btn"]',
+    );
+  const sliderTrack =
+    sliderContainer?.querySelector<HTMLElement>(
+      'div[class*="geetest_slider_track"]',
+    ) ||
+    sliderContainer?.querySelector<HTMLElement>(
+      'div[class*="geetest_track"]',
+    );
 
-  const sliceElement = geeTestBox?.querySelector<HTMLElement>(
-    'div[class*="geetest_slice"]',
-  );
+  const sliceElement =
+    searchRoot?.querySelector<HTMLElement>(
+      'div[class*="geetest_slice"]',
+    ) ||
+    searchRoot?.querySelector<HTMLElement>(
+      'canvas[class*="geetest_canvas_slice"]',
+    );
 
-  const captchaWindow = geeTestBox?.querySelector<HTMLElement>(
+  const captchaWindow = searchRoot?.querySelector<HTMLElement>(
     'div[class*="geetest_window"]',
   );
 

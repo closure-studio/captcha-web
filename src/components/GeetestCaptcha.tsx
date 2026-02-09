@@ -286,7 +286,7 @@ export function GeetestCaptcha(props: GeetestCaptchaProps) {
     // Save full result
     refs.current.solveResult = solveResult;
     return solveResult.recognizeResult.captchaId;
-  }, [task.containerId, strategy, collector, delays.screenshot]);
+  }, [adapter.version, collector, delays.screenshot, strategy, task.containerId]);
 
   // Handle successful validation (Front-end)
   const handleSuccess = useCallback(async () => {

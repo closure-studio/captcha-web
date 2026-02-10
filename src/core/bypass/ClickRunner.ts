@@ -49,21 +49,23 @@ export class ClickRunner {
   ): Promise<BypassResult> {
     try {
       const { container, canvasWidth, canvasHeight } = context;
+      // 使用截图源元素做缩放基准，保证坐标映射一致
+      const scalingEl = context.screenshotElement || container;
       const clickCommit = options?.clickCommit ?? true;
 
       if (points.length === 0) {
         return { success: false, message: "No points in solve result" };
       }
 
-      const containerRect = container.getBoundingClientRect();
-      const scaleFactorX = containerRect.width / canvasWidth;
-      const scaleFactorY = containerRect.height / canvasHeight;
+      const scalingRect = scalingEl.getBoundingClientRect();
+      const scaleFactorX = scalingRect.width / canvasWidth;
+      const scaleFactorY = scalingRect.height / canvasHeight;
 
 
       // 点击每个坐标点
       for (let i = 0; i < points.length; i++) {
         const point = points[i];
-        const currentRect = container.getBoundingClientRect();
+        const currentRect = scalingEl.getBoundingClientRect();
 
         const scaledX = point.x * scaleFactorX;
         const scaledY = point.y * scaleFactorY;

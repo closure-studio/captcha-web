@@ -58,6 +58,57 @@ function moveNewV3Panels(
   }
 }
 
+// ============ 深度查找元素（含 Shadow DOM） ============
+
+/**
+ * 递归遍历 DOM 树查找指定 class 的元素，支持穿透 Shadow DOM
+ * 返回最后一个匹配的元素（通常是最新弹出的面板）
+ */
+function findDeepElement(
+  root: HTMLElement | ShadowRoot,
+  className: string,
+): HTMLElement | null {
+  // 先尝试常规 querySelectorAll
+  const matches = root.querySelectorAll<HTMLElement>(`.${className}`);
+  if (matches.length > 0) return matches[matches.length - 1];
+
+  // 遍历子节点，穿透 Shadow DOM
+  let result: HTMLElement | null = null;
+  const walk = (node: HTMLElement | ShadowRoot) => {
+    const children =
+      node instanceof ShadowRoot ? node.children : node.children;
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i] as HTMLElement;
+      if (child.classList?.contains(className)) {
+        result = child;
+      }
+      // 穿透 Shadow DOM
+      if (child.shadowRoot) {
+        const shadowMatch = findDeepElement(child.shadowRoot, className);
+        if (shadowMatch) result = shadowMatch;
+      }
+      // 穿透 iframe（同源）
+      if (child.tagName === "IFRAME") {
+        try {
+          const iframeDoc = (child as HTMLIFrameElement).contentDocument;
+          if (iframeDoc?.body) {
+            const iframeMatch = findDeepElement(iframeDoc.body, className);
+            if (iframeMatch) result = iframeMatch;
+          }
+        } catch {
+          // 跨域 iframe，忽略
+        }
+      }
+      // 继续递归子节点
+      if (child.children?.length > 0) {
+        walk(child);
+      }
+    }
+  };
+  walk(root);
+  return result;
+}
+
 // ============ Types ============
 
 export type CaptchaStatus =
@@ -271,17 +322,14 @@ export function GeetestCaptcha(props: GeetestCaptchaProps) {
     // Wait for animation/render
     await new Promise((resolve) => setTimeout(resolve, delays.screenshot));
 
-    // V3: 截图目标是挑战区 holder (geetest_embed)，取最后一个
+    // V3: 截图目标是 geetest_widget，可能嵌套很深，需递归遍历（含 Shadow DOM）
     let screenshotContainerId = task.containerId;
     if (adapter.version === "v3") {
-      const holders = parentContainer.querySelectorAll<HTMLElement>(
-        'div[class*="geetest_holder"][class*="geetest_embed"]',
-      );
-      const holder = holders.length > 0 ? holders[holders.length - 1] : null;
-      if (holder) {
-        const holderId = `geetest-holder-${task.containerId}`;
-        holder.id = holderId;
-        screenshotContainerId = holderId;
+      const widget = findDeepElement(parentContainer, "geetest_widget");
+      if (widget) {
+        const widgetId = `geetest-widget-${task.containerId}`;
+        widget.id = widgetId;
+        screenshotContainerId = widgetId;
       }
     }
 

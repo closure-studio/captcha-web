@@ -44,14 +44,30 @@ function isGeeTestBox(el: HTMLElement): boolean {
  * 我们需要通过 holder 中的某些标识来关联正确的 geetest_box
  */
 export function findGeeTestElements(container: HTMLElement): GeeTestElements {
-  // 优先查找挑战区 holder (V3 geetest_embed)，其次查找普通 holder (V4)
-  const holder =
-    container.querySelector<HTMLElement>(
-      'div[class*="geetest_holder"][class*="geetest_embed"]',
-    ) ||
-    container.querySelector<HTMLElement>(
-      'div[class*="geetest_holder"]',
-    );
+  // 优先查找包含 geetest_widget 的 holder（V3 挑战面板），其次查找 geetest_embed，最后兜底
+  const allHolders = container.querySelectorAll<HTMLElement>(
+    'div[class*="geetest_holder"]',
+  );
+  let holder: HTMLElement | null = null;
+  // V3: 雷达按钮和挑战面板都有 geetest_holder，优先选含 geetest_widget 的（挑战面板）
+  for (let i = allHolders.length - 1; i >= 0; i--) {
+    if (allHolders[i].querySelector('.geetest_widget')) {
+      holder = allHolders[i];
+      break;
+    }
+  }
+  // 兜底：geetest_embed 或最后一个 holder
+  if (!holder) {
+    for (const h of allHolders) {
+      if (h.className.includes("geetest_embed")) {
+        holder = h;
+        break;
+      }
+    }
+  }
+  if (!holder && allHolders.length > 0) {
+    holder = allHolders[allHolders.length - 1];
+  }
 
   const boxWrap = holder?.querySelector<HTMLElement>(
     'div[class*="geetest_box_wrap"]',

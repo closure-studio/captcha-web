@@ -85,10 +85,12 @@ export class ClickStrategy implements ISolveStrategy {
       throw new Error("未找到验证码图片窗口元素");
     }
 
-    // 5. Bypass
+    // 5. Bypass — 使用截图源元素作为缩放基准
+    const screenshotElement = document.getElementById(containerId) || undefined;
     const bypassContext: GeeTestClickBypassContext = {
       container,
       captchaWindow: elements.captchaWindow,
+      screenshotElement,
       canvasWidth: canvasWidth,
       canvasHeight: canvasHeight,
     };

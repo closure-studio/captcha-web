@@ -46,6 +46,8 @@ export interface GeeTestSlideBypassContext {
 export interface GeeTestClickBypassContext {
   container: HTMLElement;
   captchaWindow: HTMLElement;
+  /** 截图源元素，用于坐标缩放基准；未提供时回退到 container */
+  screenshotElement?: HTMLElement;
   canvasWidth: number;
   canvasHeight: number;
 }

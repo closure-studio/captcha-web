@@ -270,6 +270,7 @@ export function GeetestCaptcha(props: GeetestCaptchaProps) {
           duration,
           result: extra?.result,
           errorMessage: extra?.errorMessage,
+          account: task.account,
           challenge: task.challenge,
           geetestId,
           provider: task.provider,

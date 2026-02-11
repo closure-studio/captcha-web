@@ -55,6 +55,7 @@ export interface RecognitionClientOptions {
 // ============ 任务相关 ============
 
 export interface CaptchaInfo {
+  account?:string; // game account
   challenge: string;
   geetestId?: string; // Geetest V4 ID
   gt?: string; // Geetest V3 ID
@@ -175,6 +176,7 @@ export interface SubmitResultRequest {
   provider?: Provider;
   captchaType?: CaptchaType;
   riskType?: string;
+  account?: string;
 }
 
 // ============ API 配置 ============

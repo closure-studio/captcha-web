@@ -1,7 +1,6 @@
 import axios, { type AxiosInstance } from "axios";
 import type {
   ApiResponse,
-  CaptchaInfo,
   CaptchaTask,
   CaptchaType,
   FetchTasksResponse,
@@ -15,13 +14,25 @@ const logger = createModuleLogger("CaptchaServerApi");
 
 // 上游 API 响应格式
 interface UpstreamApiResponse<T> {
-  code: number; // 1 = success, 0 = failure
+  code: number;
   data: T;
   message: string;
 }
 
+// 上游返回的任务数据结构
+interface ServerTaskItem {
+  account: string;
+  challenge: string;
+  gt: string;
+  geetestId: string;
+  riskType: string;
+  created: number;
+  captcha_type: string;
+}
+
 // 提交 V4 结果请求体
 interface SubmitV4ResultBody {
+  account: string;
   challenge: string;
   lot_number: string;
   pass_token: string;
@@ -31,6 +42,7 @@ interface SubmitV4ResultBody {
 
 // 提交 V3 结果请求体
 interface SubmitV3ResultBody {
+  account: string;
   challenge: string;
   geetest_challenge: string;
   geetest_validate: string;
@@ -68,12 +80,12 @@ export class CaptchaServerApi {
     try {
       // 上游返回的数据直接符合 CaptchaInfo 结构（除了部分字段名差异）
       const response = await this.client.get<
-        UpstreamApiResponse<CaptchaInfo[]>
+        UpstreamApiResponse<ServerTaskItem[]>
       >("/captcha/reqs", { params: { limit } });
 
-      const { code, data, message } = response.data;
+      const { data, message } = response.data;
 
-      if (code !== 1) {
+      if (!data || !Array.isArray(data)) {
         return {
           success: false,
           data: [],
@@ -105,10 +117,10 @@ export class CaptchaServerApi {
    * - taskId 由本地生成 UUID
    * - containerId 等于 taskId
    */
-  private mapToTask(info: CaptchaInfo): CaptchaTask {
+  private mapToTask(info: ServerTaskItem): CaptchaTask {
     // 判断是 V3 还是 V4
     const isV4 = !!info.geetestId;
-    const provider = info.provider || (isV4 ? "geetest_v4" : "geetest_v3");
+    const provider = isV4 ? "geetest_v4" : "geetest_v3";
 
     // 映射类型：riskType -> type
     let type: CaptchaType = "word";
@@ -130,6 +142,7 @@ export class CaptchaServerApi {
     const taskId = crypto.randomUUID();
     const task: CaptchaTask = {
       taskId,
+      account: info.account,
       containerId: taskId, // containerId 等于 taskId
       challenge: info.challenge,
       geetestId: info.geetestId || info.gt,
@@ -169,10 +182,10 @@ export class CaptchaServerApi {
         body,
       );
 
-      const { code, message } = response.data;
+      const { message } = response.data;
 
       return {
-        success: code === 1,
+        success: true,
         message,
       };
     } catch (error) {
@@ -190,10 +203,11 @@ export class CaptchaServerApi {
   private buildSubmitBody(
     request: SubmitResultRequest,
   ): SubmitV4ResultBody | SubmitV3ResultBody {
-    const { challenge, result, provider } = request;
+    const { challenge, result, provider, account } = request;
 
     if (provider === "geetest_v4") {
       return {
+        account: account!,
         challenge: challenge!,
         lot_number: result!.lot_number!,
         pass_token: result!.pass_token!,
@@ -203,6 +217,7 @@ export class CaptchaServerApi {
     } else {
       // V3 格式
       return {
+        account: account!,
         challenge: challenge!,
         geetest_challenge: result!.geetest_challenge!,
         geetest_validate: result!.geetest_validate!,

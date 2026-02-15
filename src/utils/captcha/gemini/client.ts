@@ -8,6 +8,14 @@ import type {
 
 const logger = createModuleLogger("Gemini Client");
 
+// Axios 请求配置
+const AXIOS_CONFIG = {
+  headers: {
+    "Content-Type": "application/json",
+  },
+  timeout: 90000,
+};
+
 /**
  * Gemini API 客户端
  */
@@ -24,61 +32,49 @@ export class GeminiClient {
     }
   }
 
-  async solveSlider(image: string): Promise<RecognitionResponse> {
+  /**
+   * 发送单个请求
+   */
+  private async sendRequest(
+    endpoint: string,
+    image: string,
+  ): Promise<RecognitionResponse> {
     const response = await axios.post<RecognitionResponse>(
-      `${this.baseUrl}/solver/gemini/geetest/slider`,
+      `${this.baseUrl}${endpoint}`,
       { image },
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-        timeout: 90000,
-      },
+      AXIOS_CONFIG,
     );
 
     if (!response.data.success) {
-      throw new Error("Gemini solveSlider error: Request failed");
+      throw new Error(`Gemini ${endpoint} error: Request failed`);
     }
 
     return response.data;
+  }
+
+  /**
+   * 发送两个请求，返回先完成的响应
+   */
+  private async raceRequest(
+    endpoint: string,
+    image: string,
+  ): Promise<RecognitionResponse> {
+    const request1 = this.sendRequest(endpoint, image);
+    const request2 = this.sendRequest(endpoint, image);
+
+    return Promise.race([request1, request2]);
+  }
+
+  async solveSlider(image: string): Promise<RecognitionResponse> {
+    return this.raceRequest("/solver/gemini/geetest/slider", image);
   }
 
   async solveIcon(image: string): Promise<RecognitionResponse> {
-    const response = await axios.post<RecognitionResponse>(
-      `${this.baseUrl}/solver/gemini/geetest/icon`,
-      { image },
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-        timeout: 90000,
-      },
-    );
-
-    if (!response.data.success) {
-      throw new Error("Gemini solveIcon error: Request failed");
-    }
-
-    return response.data;
+    return this.raceRequest("/solver/gemini/geetest/icon", image);
   }
 
   async solveWord(image: string): Promise<RecognitionResponse> {
-    const response = await axios.post<RecognitionResponse>(
-      `${this.baseUrl}/solver/gemini/geetest/word`,
-      { image },
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-        timeout: 90000,
-      },
-    );
-
-    if (!response.data.success) {
-      throw new Error("Gemini solveWord error: Request failed");
-    }
-
-    return response.data;
+    return this.raceRequest("/solver/gemini/geetest/word", image);
   }
 }
 
